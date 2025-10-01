@@ -1,6 +1,10 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { EmergencyContact } from "@/pages/Index";
 import ContactCard from "./ContactCard";
 import { Phone } from "lucide-react";
+import { calculateDistance, formatDistance } from "@/lib/distance";
+import { toast } from "sonner";
 
 interface ContactListProps {
   emergencyType: string;
@@ -8,94 +12,91 @@ interface ContactListProps {
 }
 
 const ContactList = ({ emergencyType, userLocation }: ContactListProps) => {
-  // National Emergency Contacts (Philippines)
-  const nationalContacts: EmergencyContact[] = [
-    {
-      id: "911",
-      name: "Emergency Hotline 911",
-      type: "all",
-      phone: "911",
-      isNational: true,
-    },
-    {
-      id: "bfp",
-      name: "Bureau of Fire Protection",
-      type: "fire",
-      phone: "(02) 8426-0219",
-      isNational: true,
-    },
-    {
-      id: "pnp",
-      name: "Philippine National Police",
-      type: "police",
-      phone: "117",
-      isNational: true,
-    },
-    {
-      id: "redcross",
-      name: "Philippine Red Cross",
-      type: "medical",
-      phone: "143",
-      isNational: true,
-    },
-    {
-      id: "ndrrmc",
-      name: "NDRRMC",
-      type: "disaster",
-      phone: "(02) 8911-1406",
-      isNational: true,
-    },
-    {
-      id: "mmda",
-      name: "MMDA",
-      type: "accident",
-      phone: "136",
-      isNational: true,
-    },
-  ];
+  const [emergencyServices, setEmergencyServices] = useState<EmergencyContact[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Local Emergency Contacts (simulated - would be based on actual location)
-  const localContacts: EmergencyContact[] = [
-    {
-      id: "local-fire-1",
-      name: "Metro Manila Fire Station",
-      type: "fire",
-      phone: "(02) 8426-0246",
-      distance: "1.2 km",
-    },
-    {
-      id: "local-police-1",
-      name: "Police Station 5",
-      type: "police",
-      phone: "(02) 8721-0294",
-      distance: "0.8 km",
-    },
-    {
-      id: "local-hospital-1",
-      name: "Manila Medical Center",
-      type: "medical",
-      phone: "(02) 8523-8131",
-      distance: "2.1 km",
-    },
-    {
-      id: "local-hospital-2",
-      name: "Makati Medical Center",
-      type: "medical",
-      phone: "(02) 8888-8999",
-      distance: "3.5 km",
-    },
-  ];
+  useEffect(() => {
+    loadEmergencyServices();
+  }, []);
 
-  // Filter contacts based on emergency type
-  const filterContacts = (contacts: EmergencyContact[]) => {
-    if (emergencyType === "other") return contacts;
-    return contacts.filter(
-      (contact) => contact.type === emergencyType || contact.type === "all"
-    );
+  const loadEmergencyServices = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('emergency_services')
+      .select('*');
+
+    if (error) {
+      toast.error("Failed to load emergency services");
+      console.error(error);
+      setLoading(false);
+      return;
+    }
+
+    // Convert database format to component format and calculate distances
+    const services: EmergencyContact[] = (data || []).map((service: any) => {
+      let distance: string | undefined;
+      
+      if (userLocation && !service.is_national) {
+        const distanceKm = calculateDistance(
+          userLocation.lat,
+          userLocation.lng,
+          parseFloat(service.latitude),
+          parseFloat(service.longitude)
+        );
+        distance = formatDistance(distanceKm);
+      }
+
+      return {
+        id: service.id,
+        name: service.name,
+        type: service.type,
+        phone: service.phone,
+        distance,
+        isNational: service.is_national,
+      };
+    });
+
+    setEmergencyServices(services);
+    setLoading(false);
   };
 
-  const filteredNational = filterContacts(nationalContacts);
-  const filteredLocal = filterContacts(localContacts);
+  // Filter and sort contacts
+  const filterAndSortContacts = (services: EmergencyContact[]) => {
+    let filtered = services;
+    
+    // Filter by emergency type
+    if (emergencyType !== "other") {
+      filtered = services.filter(
+        (service) => service.type === emergencyType || service.type === "all"
+      );
+    }
+
+    // Separate national and local
+    const national = filtered.filter((s) => s.isNational);
+    const local = filtered
+      .filter((s) => !s.isNational)
+      .sort((a, b) => {
+        // Sort by distance if available
+        if (a.distance && b.distance) {
+          const distA = parseFloat(a.distance);
+          const distB = parseFloat(b.distance);
+          return distA - distB;
+        }
+        return 0;
+      });
+
+    return { national, local };
+  };
+
+  const { national: filteredNational, local: filteredLocal } = filterAndSortContacts(emergencyServices);
+
+  if (loading) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        Loading emergency services...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

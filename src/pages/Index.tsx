@@ -1,8 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import EmergencyForm from "@/components/EmergencyForm";
 import LocationMap from "@/components/LocationMap";
 import ContactList from "@/components/ContactList";
-import { Shield } from "lucide-react";
+import ShareLocation from "@/components/ShareLocation";
+import PersonalContacts from "@/components/PersonalContacts";
+import AlertHistory from "@/components/AlertHistory";
+import { Shield, LogOut, User, History, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import type { Session } from "@supabase/supabase-js";
 
 export interface EmergencyContact {
   id: string;
@@ -14,12 +23,35 @@ export interface EmergencyContact {
 }
 
 const Index = () => {
+  const navigate = useNavigate();
+  const [session, setSession] = useState<Session | null>(null);
   const [showEmergency, setShowEmergency] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [emergencyType, setEmergencyType] = useState("");
   const [situation, setSituation] = useState("");
+  const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("emergency");
 
-  const handleEmergencyClick = (type: string, description: string) => {
+  useEffect(() => {
+    // Check auth
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (!session) {
+        navigate("/auth");
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (!session) {
+        navigate("/auth");
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const handleEmergencyClick = async (type: string, description: string) => {
     setEmergencyType(type);
     setSituation(description);
     setShowEmergency(true);
@@ -27,46 +59,130 @@ const Index = () => {
     // Get user's location
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation({
+        async (position) => {
+          const location = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-          });
+          };
+          setUserLocation(location);
+
+          // Save alert to database
+          if (session?.user) {
+            const { data, error } = await supabase
+              .from('emergency_alerts')
+              .insert({
+                user_id: session.user.id,
+                emergency_type: type,
+                situation: description,
+                latitude: location.lat,
+                longitude: location.lng,
+              })
+              .select()
+              .single();
+
+            if (data) {
+              setCurrentAlertId(data.id);
+            }
+            if (error) {
+              console.error("Error saving alert:", error);
+            }
+          }
         },
         (error) => {
           console.error("Error getting location:", error);
           // Default to Manila coordinates if location access denied
-          setUserLocation({ lat: 14.5995, lng: 120.9842 });
+          const defaultLocation = { lat: 14.5995, lng: 120.9842 };
+          setUserLocation(defaultLocation);
+          toast.warning("Could not access your location. Using default location.");
         }
       );
     } else {
       // Default to Manila coordinates if geolocation not supported
       setUserLocation({ lat: 14.5995, lng: 120.9842 });
+      toast.warning("Geolocation not supported. Using default location.");
     }
   };
 
-  const handleBack = () => {
+  const handleBack = async () => {
+    // Mark alert as resolved
+    if (currentAlertId) {
+      await supabase
+        .from('emergency_alerts')
+        .update({ 
+          status: 'resolved',
+          resolved_at: new Date().toISOString()
+        })
+        .eq('id', currentAlertId);
+    }
+    
     setShowEmergency(false);
     setUserLocation(null);
+    setCurrentAlertId(null);
   };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast.success("Logged out successfully");
+  };
+
+  if (!session) {
+    return null; // Will redirect to auth
+  }
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-primary text-primary-foreground shadow-lg sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-3">
-          <Shield className="w-8 h-8" />
-          <div>
-            <h1 className="text-2xl font-bold">Emergency Response PH</h1>
-            <p className="text-sm opacity-90">Quick access to emergency services</p>
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Shield className="w-8 h-8" />
+            <div>
+              <h1 className="text-2xl font-bold">Emergency Response PH</h1>
+              <p className="text-sm opacity-90">Quick access to emergency services</p>
+            </div>
           </div>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={handleLogout}
+            className="text-primary-foreground hover:bg-primary-foreground/10"
+          >
+            <LogOut className="w-5 h-5" />
+          </Button>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 max-w-2xl">
         {!showEmergency ? (
-          <EmergencyForm onEmergencyClick={handleEmergencyClick} />
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="emergency" className="flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Emergency
+              </TabsTrigger>
+              <TabsTrigger value="contacts" className="flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Contacts
+              </TabsTrigger>
+              <TabsTrigger value="history" className="flex items-center gap-2">
+                <History className="w-4 h-4" />
+                History
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="emergency">
+              <EmergencyForm onEmergencyClick={handleEmergencyClick} />
+            </TabsContent>
+
+            <TabsContent value="contacts">
+              <PersonalContacts userId={session.user.id} />
+            </TabsContent>
+
+            <TabsContent value="history">
+              <AlertHistory userId={session.user.id} />
+            </TabsContent>
+          </Tabs>
         ) : (
           <div className="space-y-6">
             {/* Emergency Alert */}
@@ -95,6 +211,15 @@ const Index = () => {
 
             {/* Emergency Contacts */}
             <ContactList emergencyType={emergencyType} userLocation={userLocation} />
+
+            {/* Share Location */}
+            {session?.user && userLocation && (
+              <ShareLocation 
+                userId={session.user.id}
+                location={userLocation}
+                situation={situation}
+              />
+            )}
           </div>
         )}
       </main>
