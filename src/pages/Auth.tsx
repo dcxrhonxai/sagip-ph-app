@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Shield, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import type { Session } from "@supabase/supabase-js";
+import { authSchema } from "@/lib/validation";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -47,19 +48,26 @@ const Auth = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!loginEmail || !loginPassword) {
-      toast.error("Please fill in all fields");
+    // Validate input using Zod schema
+    const result = authSchema.safeParse({
+      email: loginEmail,
+      password: loginPassword,
+    });
+
+    if (!result.success) {
+      const firstError = result.error.errors[0];
+      toast.error(firstError.message);
       return;
     }
 
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
-      password: loginPassword,
+      email: result.data.email,
+      password: result.data.password,
     });
 
     if (error) {
-      toast.error(error.message);
+      toast.error("Invalid email or password");
     } else {
       toast.success("Logged in successfully!");
     }
@@ -69,13 +77,17 @@ const Auth = () => {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!signupEmail || !signupPassword || !signupFullName) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
+    // Validate input using Zod schema
+    const result = authSchema.safeParse({
+      email: signupEmail,
+      password: signupPassword,
+      fullName: signupFullName,
+      phoneNumber: signupPhone || undefined,
+    });
 
-    if (signupPassword.length < 6) {
-      toast.error("Password must be at least 6 characters");
+    if (!result.success) {
+      const firstError = result.error.errors[0];
+      toast.error(firstError.message);
       return;
     }
 
@@ -83,12 +95,12 @@ const Auth = () => {
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
-      email: signupEmail,
-      password: signupPassword,
+      email: result.data.email,
+      password: result.data.password,
       options: {
         emailRedirectTo: redirectUrl,
         data: {
-          full_name: signupFullName,
+          full_name: result.data.fullName,
         }
       }
     });
@@ -97,17 +109,17 @@ const Auth = () => {
       if (error.message.includes("already registered")) {
         toast.error("This email is already registered. Please login instead.");
       } else {
-        toast.error(error.message);
+        toast.error("Failed to create account. Please try again.");
       }
     } else {
       toast.success("Account created successfully!");
       
       // Update profile with phone number if provided
-      if (signupPhone) {
+      if (result.data.phoneNumber) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           await supabase.from('profiles').update({
-            phone_number: signupPhone
+            phone_number: result.data.phoneNumber
           }).eq('id', user.id);
         }
       }

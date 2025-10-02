@@ -39,7 +39,6 @@ const AlertHistory = ({ userId }: AlertHistoryProps) => {
 
     if (error) {
       toast.error("Failed to load alert history");
-      console.error(error);
     } else {
       setAlerts(data || []);
     }

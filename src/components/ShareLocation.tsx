@@ -33,7 +33,7 @@ const ShareLocation = ({ userId, location, situation }: ShareLocationProps) => {
       .eq('user_id', userId);
 
     if (error) {
-      console.error(error);
+      toast.error("Failed to load contacts");
     } else {
       setContacts(data || []);
     }

@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { AlertCircle, Flame, Activity, Car, Home, Users } from "lucide-react";
 import { toast } from "sonner";
+import { emergencyFormSchema } from "@/lib/validation";
 
 interface EmergencyFormProps {
   onEmergencyClick: (type: string, situation: string) => void;
@@ -29,15 +30,19 @@ const EmergencyForm = ({ onEmergencyClick }: EmergencyFormProps) => {
   ];
 
   const handleSubmit = () => {
-    if (!emergencyType) {
-      toast.error("Please select an emergency type");
+    // Validate input using Zod schema
+    const result = emergencyFormSchema.safeParse({
+      situation,
+      emergencyType,
+    });
+
+    if (!result.success) {
+      const firstError = result.error.errors[0];
+      toast.error(firstError.message);
       return;
     }
-    if (!situation.trim()) {
-      toast.error("Please describe your situation");
-      return;
-    }
-    onEmergencyClick(emergencyType, situation);
+
+    onEmergencyClick(emergencyType, situation.trim());
   };
 
   return (

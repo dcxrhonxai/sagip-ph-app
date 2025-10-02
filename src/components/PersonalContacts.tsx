@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Phone, Trash2, Plus, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
+import { personalContactSchema } from "@/lib/validation";
 
 interface PersonalContact {
   id: string;
@@ -42,7 +43,6 @@ const PersonalContacts = ({ userId }: PersonalContactsProps) => {
 
     if (error) {
       toast.error("Failed to load contacts");
-      console.error(error);
     } else {
       setContacts(data || []);
     }
@@ -52,8 +52,16 @@ const PersonalContacts = ({ userId }: PersonalContactsProps) => {
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name || !phone) {
-      toast.error("Please fill in all required fields");
+    // Validate input using Zod schema
+    const result = personalContactSchema.safeParse({
+      name,
+      phone,
+      relationship,
+    });
+
+    if (!result.success) {
+      const firstError = result.error.errors[0];
+      toast.error(firstError.message);
       return;
     }
 
@@ -61,14 +69,13 @@ const PersonalContacts = ({ userId }: PersonalContactsProps) => {
       .from('personal_contacts')
       .insert({
         user_id: userId,
-        name,
-        phone,
-        relationship: relationship || null,
+        name: result.data.name,
+        phone: result.data.phone,
+        relationship: result.data.relationship || null,
       });
 
     if (error) {
       toast.error("Failed to add contact");
-      console.error(error);
     } else {
       toast.success("Contact added!");
       setName("");
@@ -87,7 +94,6 @@ const PersonalContacts = ({ userId }: PersonalContactsProps) => {
 
     if (error) {
       toast.error("Failed to delete contact");
-      console.error(error);
     } else {
       toast.success("Contact deleted");
       loadContacts();
