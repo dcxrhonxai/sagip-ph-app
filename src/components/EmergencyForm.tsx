@@ -8,17 +8,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { AlertCircle, Flame, Activity, Car, Home, Users } from "lucide-react";
+import { AlertCircle, Flame, Activity, Car, Home, Users, Camera, Wifi, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { emergencyFormSchema } from "@/lib/validation";
+import { MediaCapture } from "./MediaCapture";
+import { UploadedFile } from "@/lib/storage";
+import { useOfflineSync } from "@/hooks/useOfflineSync";
+import { Badge } from "./ui/badge";
 
 interface EmergencyFormProps {
-  onEmergencyClick: (type: string, situation: string) => void;
+  onEmergencyClick: (type: string, situation: string, evidenceFiles?: UploadedFile[]) => void;
+  userId: string;
 }
 
-const EmergencyForm = ({ onEmergencyClick }: EmergencyFormProps) => {
+const EmergencyForm = ({ onEmergencyClick, userId }: EmergencyFormProps) => {
   const [situation, setSituation] = useState("");
   const [emergencyType, setEmergencyType] = useState("");
+  const [showMediaCapture, setShowMediaCapture] = useState(false);
+  const [evidenceFiles, setEvidenceFiles] = useState<UploadedFile[]>([]);
+  const { isOnline, pendingCount } = useOfflineSync();
 
   const emergencyTypes = [
     { value: "fire", label: "Fire Emergency", icon: Flame },
@@ -28,6 +36,10 @@ const EmergencyForm = ({ onEmergencyClick }: EmergencyFormProps) => {
     { value: "disaster", label: "Natural Disaster", icon: Home },
     { value: "other", label: "Other Emergency", icon: Users },
   ];
+
+  const handleFilesUploaded = (files: UploadedFile[]) => {
+    setEvidenceFiles(prev => [...prev, ...files]);
+  };
 
   const handleSubmit = () => {
     // Validate input using Zod schema
@@ -42,11 +54,31 @@ const EmergencyForm = ({ onEmergencyClick }: EmergencyFormProps) => {
       return;
     }
 
-    onEmergencyClick(emergencyType, situation.trim());
+    onEmergencyClick(emergencyType, situation.trim(), evidenceFiles);
   };
 
   return (
     <div className="space-y-6">
+      {/* Status Banner */}
+      <div className="flex items-center justify-between bg-card rounded-lg p-3 shadow">
+        <div className="flex items-center gap-2">
+          {isOnline ? (
+            <>
+              <Wifi className="w-4 h-4 text-green-600" />
+              <span className="text-sm text-green-600">Online</span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="w-4 h-4 text-orange-600" />
+              <span className="text-sm text-orange-600">Offline Mode</span>
+            </>
+          )}
+        </div>
+        {pendingCount > 0 && (
+          <Badge variant="outline">{pendingCount} pending sync</Badge>
+        )}
+      </div>
+
       {/* Warning Banner */}
       <div className="bg-primary/10 border-2 border-primary rounded-lg p-6 text-center">
         <AlertCircle className="w-12 h-12 text-primary mx-auto mb-3" />
@@ -98,6 +130,31 @@ const EmergencyForm = ({ onEmergencyClick }: EmergencyFormProps) => {
               })}
             </SelectContent>
           </Select>
+        </div>
+
+        {/* Media Capture Section */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-semibold text-foreground">
+              Evidence (Optional)
+            </label>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowMediaCapture(!showMediaCapture)}
+            >
+              <Camera className="w-4 h-4 mr-2" />
+              {showMediaCapture ? 'Hide' : 'Add'} Photos/Videos/Audio
+            </Button>
+          </div>
+          {showMediaCapture && (
+            <MediaCapture userId={userId} onFilesUploaded={handleFilesUploaded} />
+          )}
+          {evidenceFiles.length > 0 && !showMediaCapture && (
+            <p className="text-xs text-green-600">
+              {evidenceFiles.length} file(s) attached
+            </p>
+          )}
         </div>
 
         {/* Emergency Button */}

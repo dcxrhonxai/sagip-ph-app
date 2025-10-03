@@ -51,7 +51,7 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const handleEmergencyClick = async (type: string, description: string) => {
+  const handleEmergencyClick = async (type: string, description: string, evidenceFiles?: any[]) => {
     setEmergencyType(type);
     setSituation(description);
     setShowEmergency(true);
@@ -76,6 +76,7 @@ const Index = () => {
                 situation: description,
                 latitude: location.lat,
                 longitude: location.lng,
+                evidence_files: evidenceFiles || [],
               })
               .select()
               .single();
@@ -172,7 +173,7 @@ const Index = () => {
             </TabsList>
 
             <TabsContent value="emergency">
-              <EmergencyForm onEmergencyClick={handleEmergencyClick} />
+              <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
             </TabsContent>
 
             <TabsContent value="contacts">

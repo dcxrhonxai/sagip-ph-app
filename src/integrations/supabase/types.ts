@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           created_at: string | null
           emergency_type: string
+          evidence_files: Json | null
           id: string
           latitude: number
           longitude: number
@@ -29,6 +30,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           emergency_type: string
+          evidence_files?: Json | null
           id?: string
           latitude: number
           longitude: number
@@ -40,6 +42,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           emergency_type?: string
+          evidence_files?: Json | null
           id?: string
           latitude?: number
           longitude?: number
