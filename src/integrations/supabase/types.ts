@@ -14,6 +14,44 @@ export type Database = {
   }
   public: {
     Tables: {
+      alert_notifications: {
+        Row: {
+          alert_id: string
+          contact_name: string
+          contact_phone: string
+          created_at: string
+          id: string
+          notified_at: string
+          viewed_at: string | null
+        }
+        Insert: {
+          alert_id: string
+          contact_name: string
+          contact_phone: string
+          created_at?: string
+          id?: string
+          notified_at?: string
+          viewed_at?: string | null
+        }
+        Update: {
+          alert_id?: string
+          contact_name?: string
+          contact_phone?: string
+          created_at?: string
+          id?: string
+          notified_at?: string
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_notifications_alert_id_fkey"
+            columns: ["alert_id"]
+            isOneToOne: false
+            referencedRelation: "emergency_alerts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emergency_alerts: {
         Row: {
           created_at: string | null

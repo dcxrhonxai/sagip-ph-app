@@ -7,10 +7,12 @@ import ContactList from "@/components/ContactList";
 import ShareLocation from "@/components/ShareLocation";
 import PersonalContacts from "@/components/PersonalContacts";
 import AlertHistory from "@/components/AlertHistory";
+import { ActiveAlerts } from "@/components/ActiveAlerts";
 import { Shield, LogOut, User, History, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { useRealtimeAlerts } from "@/hooks/useRealtimeAlerts";
 import type { Session } from "@supabase/supabase-js";
 
 export interface EmergencyContact {
@@ -31,6 +33,7 @@ const Index = () => {
   const [situation, setSituation] = useState("");
   const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("emergency");
+  const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
 
   useEffect(() => {
     // Check auth
@@ -83,6 +86,23 @@ const Index = () => {
 
             if (data) {
               setCurrentAlertId(data.id);
+
+              // Get user's emergency contacts and create notifications
+              const { data: contacts } = await supabase
+                .from("personal_contacts")
+                .select("name, phone")
+                .eq("user_id", session.user.id);
+
+              if (contacts && contacts.length > 0) {
+                const notifications = contacts.map((contact) => ({
+                  alert_id: data.id,
+                  contact_phone: contact.phone,
+                  contact_name: contact.name,
+                }));
+
+                await supabase.from("alert_notifications").insert(notifications);
+                toast.success(`${contacts.length} emergency contact(s) will be notified`);
+              }
             }
             if (error) {
               console.error("Error saving alert:", error);
@@ -173,6 +193,11 @@ const Index = () => {
             </TabsList>
 
             <TabsContent value="emergency">
+              {!alertsLoading && alerts.length > 0 && (
+                <div className="mb-6">
+                  <ActiveAlerts alerts={alerts} />
+                </div>
+              )}
               <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
             </TabsContent>
 
