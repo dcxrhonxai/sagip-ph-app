@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useRealtimeAlerts } from "@/hooks/useRealtimeAlerts";
+import { useEmergencyNotifications } from "@/hooks/useEmergencyNotifications";
 import type { Session } from "@supabase/supabase-js";
 
 export interface EmergencyContact {
@@ -34,6 +35,7 @@ const Index = () => {
   const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("emergency");
   const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
+  const { sendNotifications } = useEmergencyNotifications();
 
   useEffect(() => {
     // Check auth
@@ -87,21 +89,36 @@ const Index = () => {
             if (data) {
               setCurrentAlertId(data.id);
 
-              // Get user's emergency contacts and create notifications
+              // Get user's emergency contacts
               const { data: contacts } = await supabase
                 .from("personal_contacts")
                 .select("name, phone")
                 .eq("user_id", session.user.id);
 
               if (contacts && contacts.length > 0) {
-                const notifications = contacts.map((contact) => ({
-                  alert_id: data.id,
-                  contact_phone: contact.phone,
-                  contact_name: contact.name,
+                // Get profile for email if available
+                const { data: profile } = await supabase
+                  .from("profiles")
+                  .select("full_name")
+                  .eq("id", session.user.id)
+                  .single();
+
+                // Format contacts with email if they provided it
+                const formattedContacts = contacts.map(c => ({
+                  name: c.name,
+                  phone: c.phone,
+                  email: session.user.email ? session.user.email : undefined,
                 }));
 
-                await supabase.from("alert_notifications").insert(notifications);
-                toast.success(`${contacts.length} emergency contact(s) will be notified`);
+                // Send email notifications
+                await sendNotifications(
+                  data.id,
+                  formattedContacts,
+                  type,
+                  description,
+                  location,
+                  evidenceFiles?.map(f => ({ url: f.url, type: f.type }))
+                );
               }
             }
             if (error) {
