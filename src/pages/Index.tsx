@@ -56,6 +56,12 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  const handleQuickSOS = async () => {
+    const quickType = "🚨 EMERGENCY - SOS";
+    const quickSituation = "Quick SOS activated - Immediate help needed";
+    handleEmergencyClick(quickType, quickSituation);
+  };
+
   const handleEmergencyClick = async (type: string, description: string, evidenceFiles?: any[]) => {
     setEmergencyType(type);
     setSituation(description);
@@ -215,6 +221,21 @@ const Index = () => {
                   <ActiveAlerts alerts={alerts} />
                 </div>
               )}
+              
+              {/* Quick SOS Button */}
+              <div className="mb-6">
+                <Button
+                  onClick={handleQuickSOS}
+                  className="w-full h-32 text-3xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse"
+                  size="lg"
+                >
+                  🚨 SOS
+                </Button>
+                <p className="text-center text-sm text-muted-foreground mt-2">
+                  Tap for instant emergency alert
+                </p>
+              </div>
+
               <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
             </TabsContent>
 
