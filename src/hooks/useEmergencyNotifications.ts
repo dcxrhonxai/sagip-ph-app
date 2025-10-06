@@ -47,11 +47,17 @@ export const useEmergencyNotifications = () => {
         return;
       }
 
-      if (data?.sent > 0) {
-        toast.success(`Email sent to ${data.sent} contact(s)`);
+      if (data?.emailSent > 0 || data?.smsSent > 0) {
+        const messages = [];
+        if (data.emailSent > 0) messages.push(`${data.emailSent} email(s)`);
+        if (data.smsSent > 0) messages.push(`${data.smsSent} SMS`);
+        toast.success(`Sent to ${messages.join(" and ")}`);
       }
-      if (data?.failed > 0) {
-        toast.warning(`Failed to send to ${data.failed} contact(s)`);
+      if (data?.emailFailed > 0 || data?.smsFailed > 0) {
+        const messages = [];
+        if (data.emailFailed > 0) messages.push(`${data.emailFailed} email(s)`);
+        if (data.smsFailed > 0) messages.push(`${data.smsFailed} SMS`);
+        toast.warning(`Failed to send ${messages.join(" and ")}`);
       }
     } catch (error) {
       console.error("Error in sendNotifications:", error);

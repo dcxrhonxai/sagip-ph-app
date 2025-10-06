@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const SEMAPHORE_API_KEY = Deno.env.get("SEMAPHORE_API_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -164,18 +165,70 @@ const handler = async (req: Request): Promise<Response> => {
         }
       });
 
-    const results = await Promise.all(emailPromises);
-    const successful = results.filter(r => r.success).length;
-    const failed = results.filter(r => !r.success).length;
+    const emailResults = await Promise.all(emailPromises);
+    const emailSuccessful = emailResults.filter(r => r.success).length;
+    const emailFailed = emailResults.filter(r => !r.success).length;
 
-    console.log(`Email notifications complete: ${successful} successful, ${failed} failed`);
+    console.log(`Email notifications complete: ${emailSuccessful} successful, ${emailFailed} failed`);
+
+    // Send SMS notifications via Semaphore
+    const smsContacts = contacts.filter(contact => contact.phone);
+    const smsPromises = smsContacts.map(async (contact) => {
+      try {
+        const smsMessage = `🚨 EMERGENCY ALERT 🚨\n\n${emergencyType}\n\n${situation}\n\nLocation: https://www.google.com/maps?q=${location.latitude},${location.longitude}\n\nThis is an automated emergency notification.`;
+
+        const response = await fetch("https://api.semaphore.co/api/v4/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            apikey: SEMAPHORE_API_KEY!,
+            number: contact.phone,
+            message: smsMessage,
+            sendername: "EmergencyPH",
+          }),
+        });
+
+        const smsData = await response.json();
+        console.log(`SMS response for ${contact.name} (${contact.phone}):`, smsData);
+
+        if (response.ok && Array.isArray(smsData) && smsData.length > 0 && smsData[0].message_id) {
+          // Record SMS notification in database
+          await supabase.from("alert_notifications").insert({
+            alert_id: alertId,
+            contact_name: contact.name,
+            contact_phone: contact.phone,
+            notified_at: new Date().toISOString(),
+          });
+
+          return { success: true, contact: contact.name };
+        } else {
+          return { success: false, contact: contact.name, error: smsData };
+        }
+      } catch (error: any) {
+        console.error(`Failed to send SMS to ${contact.name}:`, error);
+        return { success: false, contact: contact.name, error: error.message };
+      }
+    });
+
+    const smsResults = await Promise.all(smsPromises);
+    const smsSuccessful = smsResults.filter(r => r.success).length;
+    const smsFailed = smsResults.filter(r => !r.success).length;
+
+    console.log(`SMS notifications complete: ${smsSuccessful} successful, ${smsFailed} failed`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        sent: successful,
-        failed: failed,
-        results: results,
+        emailSent: emailSuccessful,
+        emailFailed: emailFailed,
+        smsSent: smsSuccessful,
+        smsFailed: smsFailed,
+        results: {
+          email: emailResults,
+          sms: smsResults,
+        },
       }),
       {
         status: 200,
