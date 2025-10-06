@@ -8,7 +8,8 @@ import ShareLocation from "@/components/ShareLocation";
 import PersonalContacts from "@/components/PersonalContacts";
 import AlertHistory from "@/components/AlertHistory";
 import { ActiveAlerts } from "@/components/ActiveAlerts";
-import { Shield, LogOut, User, History, Users } from "lucide-react";
+import { EmergencyProfile } from "@/components/EmergencyProfile";
+import { Shield, LogOut, User, History, Users, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -200,7 +201,7 @@ const Index = () => {
       <main className="container mx-auto px-4 py-6 max-w-2xl">
         {!showEmergency ? (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="emergency" className="flex items-center gap-2">
                 <Shield className="w-4 h-4" />
                 Emergency
@@ -208,6 +209,10 @@ const Index = () => {
               <TabsTrigger value="contacts" className="flex items-center gap-2">
                 <Users className="w-4 h-4" />
                 Contacts
+              </TabsTrigger>
+              <TabsTrigger value="profile" className="flex items-center gap-2">
+                <Heart className="w-4 h-4" />
+                Profile
               </TabsTrigger>
               <TabsTrigger value="history" className="flex items-center gap-2">
                 <History className="w-4 h-4" />
@@ -241,6 +246,10 @@ const Index = () => {
 
             <TabsContent value="contacts">
               <PersonalContacts userId={session.user.id} />
+            </TabsContent>
+
+            <TabsContent value="profile">
+              <EmergencyProfile userId={session.user.id} />
             </TabsContent>
 
             <TabsContent value="history">

@@ -159,23 +159,35 @@ export type Database = {
       }
       profiles: {
         Row: {
+          allergies: string | null
+          blood_type: string | null
           created_at: string | null
+          emergency_notes: string | null
           full_name: string | null
           id: string
+          medical_conditions: string | null
           phone_number: string | null
           updated_at: string | null
         }
         Insert: {
+          allergies?: string | null
+          blood_type?: string | null
           created_at?: string | null
+          emergency_notes?: string | null
           full_name?: string | null
           id: string
+          medical_conditions?: string | null
           phone_number?: string | null
           updated_at?: string | null
         }
         Update: {
+          allergies?: string | null
+          blood_type?: string | null
           created_at?: string | null
+          emergency_notes?: string | null
           full_name?: string | null
           id?: string
+          medical_conditions?: string | null
           phone_number?: string | null
           updated_at?: string | null
         }
