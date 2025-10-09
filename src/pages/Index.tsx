@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, DEFAULT_LAT, DEFAULT_LNG } from "@/integrations/supabase/client";
 import EmergencyForm from "@/components/EmergencyForm";
 import LocationMap from "@/components/LocationMap";
 import ContactList from "@/components/ContactList";
@@ -38,47 +38,50 @@ const Index = () => {
   const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
   const { sendNotifications } = useEmergencyNotifications();
 
-  // Dynamic AdMob import (only on mobile devices)
+  // Conditional AdMob import to avoid Vite SSR/build issues
   useEffect(() => {
     const initAdMob = async () => {
-      if (typeof window !== "undefined" && window.Capacitor?.isNativePlatform) {
+      if (typeof window !== "undefined" && window.Capacitor) {
         try {
           const { AdMob } = await import("@capacitor/admob");
           await AdMob.initialize({ initializeForTesting: false });
 
-          // Show banner on non-critical screens only
-          if (!showEmergency) {
-            await AdMob.showBanner({
-              adId: "ca-app-pub-4211898333188674/4158088739",
-              position: "BOTTOM_CENTER",
-            });
-          }
+          await AdMob.showBanner({
+            adId: "ca-app-pub-4211898333188674/4158088739",
+            position: "BOTTOM_CENTER",
+          });
         } catch (err) {
-          console.warn("AdMob not available:", err);
+          console.error("AdMob initialization failed:", err);
         }
       }
     };
     initAdMob();
-  }, [showEmergency]);
+  }, []);
 
-  // Optional interstitial / rewarded ads (manual trigger, never during SOS)
   const showInterstitial = async () => {
-    if (typeof window !== "undefined" && window.Capacitor?.isNativePlatform) {
+    if (typeof window !== "undefined" && window.Capacitor) {
       const { AdMob } = await import("@capacitor/admob");
-      await AdMob.prepareInterstitial({ adId: "ca-app-pub-4211898333188674/3209190335" });
-      await AdMob.showInterstitial();
+      try {
+        await AdMob.prepareInterstitial({ adId: "ca-app-pub-4211898333188674/3209190335" });
+        await AdMob.showInterstitial();
+      } catch (err) {
+        console.error("Error showing interstitial ad:", err);
+      }
     }
   };
 
   const showRewarded = async () => {
-    if (typeof window !== "undefined" && window.Capacitor?.isNativePlatform) {
+    if (typeof window !== "undefined" && window.Capacitor) {
       const { AdMob } = await import("@capacitor/admob");
-      await AdMob.prepareRewardVideoAd({ adId: "ca-app-pub-4211898333188674/1896108662" });
-      await AdMob.showRewardVideoAd();
+      try {
+        await AdMob.prepareRewardVideoAd({ adId: "ca-app-pub-4211898333188674/1896108662" });
+        await AdMob.showRewardVideoAd();
+      } catch (err) {
+        console.error("Error showing rewarded ad:", err);
+      }
     }
   };
 
-  // Supabase session check
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -107,7 +110,10 @@ const Index = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
-          const location = { lat: position.coords.latitude, lng: position.coords.longitude };
+          const location = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
           setUserLocation(location);
 
           if (session?.user) {
@@ -157,14 +163,15 @@ const Index = () => {
             if (error) console.error("Error saving alert:", error);
           }
         },
-        () => {
-          const defaultLocation = { lat: 14.5995, lng: 120.9842 };
+        (error) => {
+          console.error("Error getting location:", error);
+          const defaultLocation = { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
           setUserLocation(defaultLocation);
           toast.warning("Could not access your location. Using default location.");
         }
       );
     } else {
-      setUserLocation({ lat: 14.5995, lng: 120.9842 });
+      setUserLocation({ lat: DEFAULT_LAT, lng: DEFAULT_LNG });
       toast.warning("Geolocation not supported. Using default location.");
     }
   };
@@ -173,7 +180,10 @@ const Index = () => {
     if (currentAlertId) {
       await supabase
         .from("emergency_alerts")
-        .update({ status: "resolved", resolved_at: new Date().toISOString() })
+        .update({
+          status: "resolved",
+          resolved_at: new Date().toISOString(),
+        })
         .eq("id", currentAlertId);
     }
     setShowEmergency(false);
@@ -235,7 +245,12 @@ const Index = () => {
             </TabsList>
 
             <TabsContent value="emergency">
-              {!alertsLoading && alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
+              {!alertsLoading && alerts.length > 0 && (
+                <div className="mb-6">
+                  <ActiveAlerts alerts={alerts} />
+                </div>
+              )}
+
               <div className="mb-6">
                 <Button
                   onClick={handleQuickSOS}
@@ -248,7 +263,10 @@ const Index = () => {
                   Tap for instant emergency alert
                 </p>
               </div>
+
               <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
+
+              {/* Optional Ad Controls for Testing */}
               <div className="mt-8 flex justify-center gap-4">
                 <Button onClick={showInterstitial}>Show Interstitial Ad</Button>
                 <Button onClick={showRewarded}>Show Rewarded Ad</Button>
