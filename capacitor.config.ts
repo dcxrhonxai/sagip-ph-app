@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.wxtech.emergencyresponseph',
+  appId: 'app.lovable.fcbb65b390f2441890e8a8de327e1a60',
   appName: 'Emergency Response PH',
   webDir: 'dist',
   plugins: {
