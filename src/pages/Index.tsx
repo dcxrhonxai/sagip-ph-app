@@ -1,3 +1,4 @@
+// src/pages/Index.tsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase, DEFAULT_LAT, DEFAULT_LNG } from "@/integrations/supabase/client";
@@ -16,6 +17,7 @@ import { toast } from "sonner";
 import { useRealtimeAlerts } from "@/hooks/useRealtimeAlerts";
 import { useEmergencyNotifications } from "@/hooks/useEmergencyNotifications";
 import type { Session } from "@supabase/supabase-js";
+import { initAdMob, showInterstitialAd, showRewardedAd } from "@/integrations/admob/admob";
 
 export interface EmergencyContact {
   id: string;
@@ -38,52 +40,11 @@ const Index = () => {
   const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
   const { sendNotifications } = useEmergencyNotifications();
 
-  // ✅ Dynamic AdMob initialization for Capacitor (avoids Vite build errors)
+  // Initialize AdMob on native devices only
   useEffect(() => {
-    const initAdMob = async () => {
-      if (window?.Capacitor?.isNative) {
-        try {
-          const { AdMob } = await import("@capacitor/admob");
-          await AdMob.initialize({ initializeForTesting: false });
-          await AdMob.showBanner({
-            adId: "ca-app-pub-4211898333188674/4158088739", // replace with your banner ad ID
-            position: "BOTTOM_CENTER",
-          });
-        } catch (err) {
-          console.error("AdMob failed:", err);
-        }
-      }
-    };
     initAdMob();
   }, []);
 
-  const showInterstitial = async () => {
-    if (!window?.Capacitor?.isNative) return;
-    try {
-      const { AdMob } = await import("@capacitor/admob");
-      await AdMob.prepareInterstitial({
-        adId: "ca-app-pub-4211898333188674/3209190335",
-      });
-      await AdMob.showInterstitial();
-    } catch (err) {
-      console.error("Error showing interstitial ad:", err);
-    }
-  };
-
-  const showRewarded = async () => {
-    if (!window?.Capacitor?.isNative) return;
-    try {
-      const { AdMob } = await import("@capacitor/admob");
-      await AdMob.prepareRewardVideoAd({
-        adId: "ca-app-pub-4211898333188674/1896108662",
-      });
-      await AdMob.showRewardVideoAd();
-    } catch (err) {
-      console.error("Error showing rewarded ad:", err);
-    }
-  };
-
-  // Supabase auth session
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -135,12 +96,6 @@ const Index = () => {
                 .eq("user_id", session.user.id);
 
               if (contacts && contacts.length > 0) {
-                const { data: profile } = await supabase
-                  .from("profiles")
-                  .select("full_name")
-                  .eq("id", session.user.id)
-                  .single();
-
                 const formattedContacts = contacts.map((c) => ({
                   name: c.name,
                   phone: c.phone,
@@ -203,7 +158,12 @@ const Index = () => {
               <p className="text-sm opacity-90">Quick access to emergency services</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleLogout} className="text-primary-foreground hover:bg-primary-foreground/10">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleLogout}
+            className="text-primary-foreground hover:bg-primary-foreground/10"
+          >
             <LogOut className="w-5 h-5" />
           </Button>
         </div>
@@ -230,7 +190,6 @@ const Index = () => {
 
             <TabsContent value="emergency">
               {!alertsLoading && alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
-
               <div className="mb-6">
                 <Button
                   onClick={handleQuickSOS}
@@ -246,10 +205,9 @@ const Index = () => {
 
               <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
 
-              {/* Optional Ad Controls */}
               <div className="mt-8 flex justify-center gap-4">
-                <Button onClick={showInterstitial}>Show Interstitial Ad</Button>
-                <Button onClick={showRewarded}>Show Rewarded Ad</Button>
+                <Button onClick={showInterstitialAd}>Show Interstitial Ad</Button>
+                <Button onClick={showRewardedAd}>Show Rewarded Ad</Button>
               </div>
             </TabsContent>
 
@@ -269,12 +227,8 @@ const Index = () => {
           <div className="space-y-6">
             <div className="bg-primary text-primary-foreground p-6 rounded-lg shadow-lg">
               <h2 className="text-xl font-bold mb-2">Emergency Alert Active</h2>
-              <p className="mb-2">
-                <strong>Type:</strong> {emergencyType}
-              </p>
-              <p className="mb-4">
-                <strong>Situation:</strong> {situation}
-              </p>
+              <p className="mb-2"><strong>Type:</strong> {emergencyType}</p>
+              <p className="mb-4"><strong>Situation:</strong> {situation}</p>
               <button
                 onClick={handleBack}
                 className="bg-primary-foreground text-primary px-4 py-2 rounded-md font-semibold hover:opacity-90 transition-opacity"
