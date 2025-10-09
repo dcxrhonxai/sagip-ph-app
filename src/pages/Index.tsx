@@ -1,3 +1,4 @@
+// /src/pages/Index.tsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase, DEFAULT_LAT, DEFAULT_LNG } from "@/integrations/supabase/client";
@@ -17,6 +18,8 @@ import { useRealtimeAlerts } from "@/hooks/useRealtimeAlerts";
 import { useEmergencyNotifications } from "@/hooks/useEmergencyNotifications";
 import type { Session } from "@supabase/supabase-js";
 
+import { initAdMob, showInterstitial, showRewarded } from "@/integrations/admob";
+
 export interface EmergencyContact {
   id: string;
   name: string;
@@ -35,55 +38,14 @@ const Index = () => {
   const [situation, setSituation] = useState("");
   const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("emergency");
+
   const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
   const { sendNotifications } = useEmergencyNotifications();
 
-  // Initialize AdMob (device only)
+  // Initialize AdMob safely
   useEffect(() => {
-    const initAdMob = async () => {
-      if ((window as any).Capacitor?.isNativePlatform?.()) {
-        try {
-          const { AdMob } = await import("@capacitor-community/admob");
-          await AdMob.initialize({ initializeForTesting: false });
-          await AdMob.showBanner({
-            adId: import.meta.env.VITE_ADMOB_BANNER_ID,
-            position: "BOTTOM_CENTER",
-          });
-        } catch (err) {
-          console.error("AdMob initialization failed:", err);
-        }
-      }
-    };
     initAdMob();
   }, []);
-
-  const showInterstitial = async () => {
-    if ((window as any).Capacitor?.isNativePlatform?.()) {
-      try {
-        const { AdMob } = await import("@capacitor-community/admob");
-        await AdMob.prepareInterstitial({
-          adId: import.meta.env.VITE_ADMOB_INTERSTITIAL_ID,
-        });
-        await AdMob.showInterstitial();
-      } catch (err) {
-        console.error("Error showing interstitial ad:", err);
-      }
-    }
-  };
-
-  const showRewarded = async () => {
-    if ((window as any).Capacitor?.isNativePlatform?.()) {
-      try {
-        const { AdMob } = await import("@capacitor-community/admob");
-        await AdMob.prepareRewardVideoAd({
-          adId: import.meta.env.VITE_ADMOB_REWARDED_ID,
-        });
-        await AdMob.showRewardVideoAd();
-      } catch (err) {
-        console.error("Error showing rewarded ad:", err);
-      }
-    }
-  };
 
   // Supabase session handling
   useEffect(() => {
@@ -101,9 +63,7 @@ const Index = () => {
   }, [navigate]);
 
   const handleQuickSOS = async () => {
-    const quickType = "🚨 EMERGENCY - SOS";
-    const quickSituation = "Quick SOS activated - Immediate help needed";
-    handleEmergencyClick(quickType, quickSituation);
+    handleEmergencyClick("🚨 EMERGENCY - SOS", "Quick SOS activated - Immediate help needed");
   };
 
   const handleEmergencyClick = async (type: string, description: string, evidenceFiles?: any[]) => {
@@ -111,76 +71,77 @@ const Index = () => {
     setSituation(description);
     setShowEmergency(true);
 
-    const fallbackLocation = { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
+    const locationFallback = { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
-          const location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
+          const location = { lat: position.coords.latitude, lng: position.coords.longitude };
           setUserLocation(location);
-
-          if (session?.user) {
-            const { data, error } = await supabase
-              .from("emergency_alerts")
-              .insert({
-                user_id: session.user.id,
-                emergency_type: type,
-                situation: description,
-                latitude: location.lat,
-                longitude: location.lng,
-                evidence_files: evidenceFiles || [],
-              })
-              .select()
-              .single();
-
-            if (data) {
-              setCurrentAlertId(data.id);
-              const { data: contacts } = await supabase
-                .from("personal_contacts")
-                .select("name, phone")
-                .eq("user_id", session.user.id);
-
-              if (contacts && contacts.length > 0) {
-                const formattedContacts = contacts.map((c) => ({
-                  name: c.name,
-                  phone: c.phone,
-                  email: session.user.email || undefined,
-                }));
-
-                await sendNotifications(
-                  data.id,
-                  formattedContacts,
-                  type,
-                  description,
-                  location,
-                  evidenceFiles?.map((f) => ({ url: f.url, type: f.type }))
-                );
-              }
-            }
-            if (error) console.error("Error saving alert:", error);
-          }
+          await saveAlert(type, description, location, evidenceFiles);
         },
         () => {
-          setUserLocation(fallbackLocation);
+          setUserLocation(locationFallback);
           toast.warning("Could not access your location. Using default location.");
+          await saveAlert(type, description, locationFallback, evidenceFiles);
         }
       );
     } else {
-      setUserLocation(fallbackLocation);
+      setUserLocation(locationFallback);
       toast.warning("Geolocation not supported. Using default location.");
+      await saveAlert(type, description, locationFallback, evidenceFiles);
     }
+  };
+
+  const saveAlert = async (type: string, description: string, location: { lat: number; lng: number }, evidenceFiles?: any[]) => {
+    if (!session?.user) return;
+
+    const { data, error } = await supabase
+      .from("emergency_alerts")
+      .insert({
+        user_id: session.user.id,
+        emergency_type: type,
+        situation: description,
+        latitude: location.lat,
+        longitude: location.lng,
+        evidence_files: evidenceFiles || [],
+      })
+      .select()
+      .single();
+
+    if (data) {
+      setCurrentAlertId(data.id);
+      const { data: contacts } = await supabase
+        .from("personal_contacts")
+        .select("name, phone")
+        .eq("user_id", session.user.id);
+
+      if (contacts && contacts.length > 0) {
+        const formattedContacts = contacts.map((c) => ({
+          name: c.name,
+          phone: c.phone,
+          email: session.user.email || undefined,
+        }));
+
+        await sendNotifications(
+          data.id,
+          formattedContacts,
+          type,
+          description,
+          location,
+          evidenceFiles?.map((f) => ({ url: f.url, type: f.type }))
+        );
+      }
+    }
+
+    if (error) console.error("Error saving alert:", error);
   };
 
   const handleBack = async () => {
     if (currentAlertId) {
       await supabase
         .from("emergency_alerts")
-        .update({
-          status: "resolved",
-          resolved_at: new Date().toISOString(),
-        })
+        .update({ status: "resolved", resolved_at: new Date().toISOString() })
         .eq("id", currentAlertId);
     }
     setShowEmergency(false);
@@ -207,12 +168,7 @@ const Index = () => {
               <p className="text-sm opacity-90">Quick access to emergency services</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleLogout}
-            className="text-primary-foreground hover:bg-primary-foreground/10"
-          >
+          <Button variant="ghost" size="icon" onClick={handleLogout} className="text-primary-foreground hover:bg-primary-foreground/10">
             <LogOut className="w-5 h-5" />
           </Button>
         </div>
@@ -238,7 +194,12 @@ const Index = () => {
             </TabsList>
 
             <TabsContent value="emergency">
-              {!alertsLoading && alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
+              {!alertsLoading && alerts.length > 0 && (
+                <div className="mb-6">
+                  <ActiveAlerts alerts={alerts} />
+                </div>
+              )}
+
               <div className="mb-6">
                 <Button
                   onClick={handleQuickSOS}
@@ -247,14 +208,12 @@ const Index = () => {
                 >
                   🚨 SOS
                 </Button>
-                <p className="text-center text-sm text-muted-foreground mt-2">
-                  Tap for instant emergency alert
-                </p>
+                <p className="text-center text-sm text-muted-foreground mt-2">Tap for instant emergency alert</p>
               </div>
 
               <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
 
-              {/* Optional Ad Controls */}
+              {/* Optional Ad Controls for Testing */}
               <div className="mt-8 flex justify-center gap-4">
                 <Button onClick={showInterstitial}>Show Interstitial Ad</Button>
                 <Button onClick={showRewarded}>Show Rewarded Ad</Button>
