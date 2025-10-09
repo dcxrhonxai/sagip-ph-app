@@ -1,7 +1,7 @@
-// /src/pages/Index.tsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase, DEFAULT_LAT, DEFAULT_LNG } from "@/integrations/supabase/client";
+import { initializeAdMob } from "@/integrations/admob";
 import EmergencyForm from "@/components/EmergencyForm";
 import LocationMap from "@/components/LocationMap";
 import ContactList from "@/components/ContactList";
@@ -17,8 +17,6 @@ import { toast } from "sonner";
 import { useRealtimeAlerts } from "@/hooks/useRealtimeAlerts";
 import { useEmergencyNotifications } from "@/hooks/useEmergencyNotifications";
 import type { Session } from "@supabase/supabase-js";
-
-import { initAdMob, showInterstitial, showRewarded } from "@/integrations/admob";
 
 export interface EmergencyContact {
   id: string;
@@ -38,27 +36,25 @@ const Index = () => {
   const [situation, setSituation] = useState("");
   const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("emergency");
-
   const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
   const { sendNotifications } = useEmergencyNotifications();
 
-  // Initialize AdMob safely
   useEffect(() => {
-    initAdMob();
+    const init = async () => {
+      await initializeAdMob();
+    };
+    init();
   }, []);
 
-  // Supabase session handling
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (!session) navigate("/auth");
     });
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (!session) navigate("/auth");
     });
-
     return () => subscription.unsubscribe();
   }, [navigate]);
 
@@ -71,78 +67,49 @@ const Index = () => {
     setSituation(description);
     setShowEmergency(true);
 
-    const locationFallback = { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
-
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const location = { lat: position.coords.latitude, lng: position.coords.longitude };
           setUserLocation(location);
-          await saveAlert(type, description, location, evidenceFiles);
+
+          if (session?.user) {
+            const { data, error } = await supabase.from("emergency_alerts").insert({
+              user_id: session.user.id,
+              emergency_type: type,
+              situation: description,
+              latitude: location.lat,
+              longitude: location.lng,
+              evidence_files: evidenceFiles || [],
+            }).select().single();
+
+            if (data) {
+              setCurrentAlertId(data.id);
+              const { data: contacts } = await supabase.from("personal_contacts").select("name, phone").eq("user_id", session.user.id);
+              if (contacts?.length) {
+                const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", session.user.id).single();
+                const formattedContacts = contacts.map(c => ({ name: c.name, phone: c.phone, email: session.user.email || undefined }));
+                await sendNotifications(data.id, formattedContacts, type, description, location, evidenceFiles?.map(f => ({ url: f.url, type: f.type })));
+              }
+            }
+            if (error) console.error("Error saving alert:", error);
+          }
         },
         () => {
-          setUserLocation(locationFallback);
+          const defaultLocation = { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
+          setUserLocation(defaultLocation);
           toast.warning("Could not access your location. Using default location.");
-          await saveAlert(type, description, locationFallback, evidenceFiles);
         }
       );
     } else {
-      setUserLocation(locationFallback);
+      setUserLocation({ lat: DEFAULT_LAT, lng: DEFAULT_LNG });
       toast.warning("Geolocation not supported. Using default location.");
-      await saveAlert(type, description, locationFallback, evidenceFiles);
     }
-  };
-
-  const saveAlert = async (type: string, description: string, location: { lat: number; lng: number }, evidenceFiles?: any[]) => {
-    if (!session?.user) return;
-
-    const { data, error } = await supabase
-      .from("emergency_alerts")
-      .insert({
-        user_id: session.user.id,
-        emergency_type: type,
-        situation: description,
-        latitude: location.lat,
-        longitude: location.lng,
-        evidence_files: evidenceFiles || [],
-      })
-      .select()
-      .single();
-
-    if (data) {
-      setCurrentAlertId(data.id);
-      const { data: contacts } = await supabase
-        .from("personal_contacts")
-        .select("name, phone")
-        .eq("user_id", session.user.id);
-
-      if (contacts && contacts.length > 0) {
-        const formattedContacts = contacts.map((c) => ({
-          name: c.name,
-          phone: c.phone,
-          email: session.user.email || undefined,
-        }));
-
-        await sendNotifications(
-          data.id,
-          formattedContacts,
-          type,
-          description,
-          location,
-          evidenceFiles?.map((f) => ({ url: f.url, type: f.type }))
-        );
-      }
-    }
-
-    if (error) console.error("Error saving alert:", error);
   };
 
   const handleBack = async () => {
     if (currentAlertId) {
-      await supabase
-        .from("emergency_alerts")
-        .update({ status: "resolved", resolved_at: new Date().toISOString() })
-        .eq("id", currentAlertId);
+      await supabase.from("emergency_alerts").update({ status: "resolved", resolved_at: new Date().toISOString() }).eq("id", currentAlertId);
     }
     setShowEmergency(false);
     setUserLocation(null);
@@ -158,7 +125,6 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="bg-primary text-primary-foreground shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -174,63 +140,28 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-6 max-w-2xl">
         {!showEmergency ? (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="emergency" className="flex items-center gap-2">
-                <Shield className="w-4 h-4" /> Emergency
-              </TabsTrigger>
-              <TabsTrigger value="contacts" className="flex items-center gap-2">
-                <Users className="w-4 h-4" /> Contacts
-              </TabsTrigger>
-              <TabsTrigger value="profile" className="flex items-center gap-2">
-                <Heart className="w-4 h-4" /> Profile
-              </TabsTrigger>
-              <TabsTrigger value="history" className="flex items-center gap-2">
-                <History className="w-4 h-4" /> History
-              </TabsTrigger>
+              <TabsTrigger value="emergency" className="flex items-center gap-2"><Shield className="w-4 h-4" />Emergency</TabsTrigger>
+              <TabsTrigger value="contacts" className="flex items-center gap-2"><Users className="w-4 h-4" />Contacts</TabsTrigger>
+              <TabsTrigger value="profile" className="flex items-center gap-2"><Heart className="w-4 h-4" />Profile</TabsTrigger>
+              <TabsTrigger value="history" className="flex items-center gap-2"><History className="w-4 h-4" />History</TabsTrigger>
             </TabsList>
 
             <TabsContent value="emergency">
-              {!alertsLoading && alerts.length > 0 && (
-                <div className="mb-6">
-                  <ActiveAlerts alerts={alerts} />
-                </div>
-              )}
-
+              {!alertsLoading && alerts.length > 0 && <div className="mb-6"><ActiveAlerts alerts={alerts} /></div>}
               <div className="mb-6">
-                <Button
-                  onClick={handleQuickSOS}
-                  className="w-full h-32 text-3xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse"
-                  size="lg"
-                >
-                  🚨 SOS
-                </Button>
+                <Button onClick={handleQuickSOS} className="w-full h-32 text-3xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse" size="lg">🚨 SOS</Button>
                 <p className="text-center text-sm text-muted-foreground mt-2">Tap for instant emergency alert</p>
               </div>
-
               <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
-
-              {/* Optional Ad Controls for Testing */}
-              <div className="mt-8 flex justify-center gap-4">
-                <Button onClick={showInterstitial}>Show Interstitial Ad</Button>
-                <Button onClick={showRewarded}>Show Rewarded Ad</Button>
-              </div>
             </TabsContent>
 
-            <TabsContent value="contacts">
-              <PersonalContacts userId={session.user.id} />
-            </TabsContent>
-
-            <TabsContent value="profile">
-              <EmergencyProfile userId={session.user.id} />
-            </TabsContent>
-
-            <TabsContent value="history">
-              <AlertHistory userId={session.user.id} />
-            </TabsContent>
+            <TabsContent value="contacts"><PersonalContacts userId={session.user.id} /></TabsContent>
+            <TabsContent value="profile"><EmergencyProfile userId={session.user.id} /></TabsContent>
+            <TabsContent value="history"><AlertHistory userId={session.user.id} /></TabsContent>
           </Tabs>
         ) : (
           <div className="space-y-6">
@@ -238,25 +169,11 @@ const Index = () => {
               <h2 className="text-xl font-bold mb-2">Emergency Alert Active</h2>
               <p className="mb-2"><strong>Type:</strong> {emergencyType}</p>
               <p className="mb-4"><strong>Situation:</strong> {situation}</p>
-              <button
-                onClick={handleBack}
-                className="bg-primary-foreground text-primary px-4 py-2 rounded-md font-semibold hover:opacity-90 transition-opacity"
-              >
-                Cancel Alert
-              </button>
+              <button onClick={handleBack} className="bg-primary-foreground text-primary px-4 py-2 rounded-md font-semibold hover:opacity-90 transition-opacity">Cancel Alert</button>
             </div>
-
-            {userLocation && (
-              <div className="bg-card rounded-lg shadow-lg overflow-hidden">
-                <LocationMap location={userLocation} />
-              </div>
-            )}
-
+            {userLocation && <div className="bg-card rounded-lg shadow-lg overflow-hidden"><LocationMap location={userLocation} /></div>}
             <ContactList emergencyType={emergencyType} userLocation={userLocation} />
-
-            {session?.user && userLocation && (
-              <ShareLocation userId={session.user.id} location={userLocation} situation={situation} />
-            )}
+            {session?.user && userLocation && <ShareLocation userId={session.user.id} location={userLocation} situation={situation} />}
           </div>
         )}
       </main>
