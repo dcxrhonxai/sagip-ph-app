@@ -14,8 +14,8 @@
   },
   "dependencies": {
     "@capacitor-community/admob": "^7.0.3",
-    "@capacitor/camera": "^7.0.2",
     "@capacitor/android": "^7.4.3",
+    "@capacitor/camera": "^7.0.2",
     "@capacitor/core": "^7.4.3",
     "@capacitor/ios": "^7.4.3",
     "@radix-ui/react-label": "^2.1.7",
@@ -25,6 +25,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@supabase/supabase-js": "^2.37.0",
     "@tanstack/react-query": "latest",
+    "capacitor-voice-recorder": "^7.0.6",
     "class-variance-authority": "^0.7.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^0.545.0",
