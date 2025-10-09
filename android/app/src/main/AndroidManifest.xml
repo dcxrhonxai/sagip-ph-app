@@ -2,6 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="app.lovable.fcbb65b390f2441890e8a8de327e1a60">
 
+    <!-- Minimum & Target SDK -->
+    <uses-sdk
+        android:minSdkVersion="23"
+        android:targetSdkVersion="35" />
+
     <!-- Essential Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -9,23 +14,20 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-
-    <!-- Media permissions for Android 13+ -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
 
-    <!-- Optional for older devices (if targeting < API 33) -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-
+    <!-- Optional: query camera intent -->
     <queries>
         <intent>
             <action android:name="android.media.action.IMAGE_CAPTURE" />
         </intent>
     </queries>
 
-    <!-- Custom dynamic permission -->
+    <!-- App-specific permission -->
     <permission
         android:name="app.lovable.fcbb65b390f2441890e8a8de327e1a60.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
         android:protectionLevel="signature" />
@@ -39,10 +41,10 @@
         android:supportsRtl="true"
         android:appComponentFactory="androidx.core.app.CoreComponentFactory">
 
-        <!-- AdMob App ID -->
+        <!-- ✅ AdMob App ID -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="@string/admob_app_id" />
+            android:value="ca-app-pub-4211898333188674~9892796996" />
 
         <!-- Main Activity -->
         <activity
@@ -56,7 +58,7 @@
             </intent-filter>
         </activity>
 
-        <!-- File Provider for sharing files -->
+        <!-- File Provider -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="app.lovable.fcbb65b390f2441890e8a8de327e1a60.fileprovider"
@@ -67,7 +69,7 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- AndroidX Startup Providers -->
+        <!-- Startup Providers -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:exported="false"
