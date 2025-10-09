@@ -1,18 +1,38 @@
+import { Capacitor } from "@capacitor/core";
+
+let AdMob: typeof import("@capacitor-community/admob").AdMobPlugin;
+
 export const initAdMob = async () => {
-  if (window.Capacitor?.isNative) {
+  if (Capacitor.isNativePlatform()) {
+    AdMob = (await import("@capacitor-community/admob")).AdMob;
     try {
-      const { AdMob } = await import('@capacitor-community/admob');
       await AdMob.initialize({ initializeForTesting: false });
-
-      // Show banner
       await AdMob.showBanner({
-        adId: import.meta.env.VITE_ADMOB_BANNER_ID,
-        position: 'BOTTOM_CENTER',
+        adId: "ca-app-pub-4211898333188674/4158088739", // Replace with your banner ID
+        position: "BOTTOM_CENTER",
       });
-
-      return AdMob;
     } catch (err) {
-      console.error('AdMob init failed:', err);
+      console.error("AdMob failed:", err);
     }
+  }
+};
+
+export const showInterstitial = async () => {
+  if (!AdMob) return;
+  try {
+    await AdMob.prepareInterstitial({ adId: "ca-app-pub-4211898333188674/3209190335" });
+    await AdMob.showInterstitial();
+  } catch (err) {
+    console.error("Interstitial failed:", err);
+  }
+};
+
+export const showRewarded = async () => {
+  if (!AdMob) return;
+  try {
+    await AdMob.prepareRewardVideoAd({ adId: "ca-app-pub-4211898333188674/1896108662" });
+    await AdMob.showRewardVideoAd();
+  } catch (err) {
+    console.error("Rewarded ad failed:", err);
   }
 };
