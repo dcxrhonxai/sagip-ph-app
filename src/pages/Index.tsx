@@ -1,46 +1,35 @@
-// src/pages/Index.tsx
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase, DEFAULT_LAT, DEFAULT_LNG } from "@/integrations/supabase/client";
-import EmergencyForm from "@/components/EmergencyForm";
-import LocationMap from "@/components/LocationMap";
-import ContactList from "@/components/ContactList";
-import ShareLocation from "@/components/ShareLocation";
-import PersonalContacts from "@/components/PersonalContacts";
-import AlertHistory from "@/components/AlertHistory";
-import { ActiveAlerts } from "@/components/ActiveAlerts";
-import { EmergencyProfile } from "@/components/EmergencyProfile";
-import { Shield, LogOut, History, Users, Heart } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
-import { useRealtimeAlerts } from "@/hooks/useRealtimeAlerts";
-import { useEmergencyNotifications } from "@/hooks/useEmergencyNotifications";
-import type { Session } from "@supabase/supabase-js";
-import { initAdMob, showInterstitialAd, showRewardedAd } from "@/integrations/admob/admob";
-
-export interface EmergencyContact {
-  id: string;
-  name: string;
-  type: string;
-  phone: string;
-  distance?: string;
-  isNational?: boolean;
-}
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase, DEFAULT_LAT, DEFAULT_LNG } from '@/integrations/supabase/client';
+import { initAdMob } from '@/integrations/admob';
+import EmergencyForm from '@/components/EmergencyForm';
+import LocationMap from '@/components/LocationMap';
+import PersonalContacts from '@/components/PersonalContacts';
+import AlertHistory from '@/components/AlertHistory';
+import { ActiveAlerts } from '@/components/ActiveAlerts';
+import { EmergencyProfile } from '@/components/EmergencyProfile';
+import { Shield, LogOut, History, Users, Heart } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from 'sonner';
+import { useRealtimeAlerts } from '@/hooks/useRealtimeAlerts';
+import { useEmergencyNotifications } from '@/hooks/useEmergencyNotifications';
+import type { Session } from '@supabase/supabase-js';
 
 const Index = () => {
   const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
   const [showEmergency, setShowEmergency] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [emergencyType, setEmergencyType] = useState("");
-  const [situation, setSituation] = useState("");
+  const [emergencyType, setEmergencyType] = useState('');
+  const [situation, setSituation] = useState('');
   const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("emergency");
+  const [activeTab, setActiveTab] = useState('emergency');
+
   const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
   const { sendNotifications } = useEmergencyNotifications();
 
-  // Initialize AdMob on native devices only
+  // Initialize AdMob (Vite-safe)
   useEffect(() => {
     initAdMob();
   }, []);
@@ -48,91 +37,61 @@ const Index = () => {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (!session) navigate("/auth");
+      if (!session) navigate('/auth');
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (!session) navigate("/auth");
+      if (!session) navigate('/auth');
     });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  // Handle Quick SOS
   const handleQuickSOS = async () => {
-    handleEmergencyClick("🚨 EMERGENCY - SOS", "Quick SOS activated - Immediate help needed");
+    handleEmergencyClick('🚨 EMERGENCY - SOS', 'Quick SOS activated - Immediate help needed');
   };
 
+  // Handle Emergency Alert
   const handleEmergencyClick = async (type: string, description: string, evidenceFiles?: any[]) => {
     setEmergencyType(type);
     setSituation(description);
     setShowEmergency(true);
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const location = { lat: position.coords.latitude, lng: position.coords.longitude };
-          setUserLocation(location);
+    const location = userLocation ?? { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
+    setUserLocation(location);
 
-          if (session?.user) {
-            const { data, error } = await supabase
-              .from("emergency_alerts")
-              .insert({
-                user_id: session.user.id,
-                emergency_type: type,
-                situation: description,
-                latitude: location.lat,
-                longitude: location.lng,
-                evidence_files: evidenceFiles || [],
-              })
-              .select()
-              .single();
+    if (!session?.user) return;
 
-            if (data) {
-              setCurrentAlertId(data.id);
-              const { data: contacts } = await supabase
-                .from("personal_contacts")
-                .select("name, phone")
-                .eq("user_id", session.user.id);
+    try {
+      const { data, error } = await supabase
+        .from('emergency_alerts')
+        .insert({
+          user_id: session.user.id,
+          emergency_type: type,
+          situation: description,
+          latitude: location.lat,
+          longitude: location.lng,
+          evidence_files: evidenceFiles || [],
+        })
+        .select()
+        .single();
 
-              if (contacts && contacts.length > 0) {
-                const formattedContacts = contacts.map((c) => ({
-                  name: c.name,
-                  phone: c.phone,
-                  email: session.user.email || undefined,
-                }));
+      if (data) setCurrentAlertId(data.id);
 
-                await sendNotifications(
-                  data.id,
-                  formattedContacts,
-                  type,
-                  description,
-                  location,
-                  evidenceFiles?.map((f) => ({ url: f.url, type: f.type }))
-                );
-              }
-            }
-            if (error) console.error("Error saving alert:", error);
-          }
-        },
-        () => {
-          const defaultLocation = { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
-          setUserLocation(defaultLocation);
-          toast.warning("Could not access your location. Using default location.");
-        }
-      );
-    } else {
-      setUserLocation({ lat: DEFAULT_LAT, lng: DEFAULT_LNG });
-      toast.warning("Geolocation not supported. Using default location.");
+      if (error) console.error('Error saving alert:', error);
+    } catch (err) {
+      console.error(err);
     }
   };
 
   const handleBack = async () => {
     if (currentAlertId) {
       await supabase
-        .from("emergency_alerts")
-        .update({ status: "resolved", resolved_at: new Date().toISOString() })
-        .eq("id", currentAlertId);
+        .from('emergency_alerts')
+        .update({ status: 'resolved', resolved_at: new Date().toISOString() })
+        .eq('id', currentAlertId);
     }
     setShowEmergency(false);
     setUserLocation(null);
@@ -141,14 +100,13 @@ const Index = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    toast.success("Logged out successfully");
+    toast.success('Logged out successfully');
   };
 
   if (!session) return null;
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="bg-primary text-primary-foreground shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -158,18 +116,12 @@ const Index = () => {
               <p className="text-sm opacity-90">Quick access to emergency services</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleLogout}
-            className="text-primary-foreground hover:bg-primary-foreground/10"
-          >
+          <Button variant="ghost" size="icon" onClick={handleLogout}>
             <LogOut className="w-5 h-5" />
           </Button>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-6 max-w-2xl">
         {!showEmergency ? (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -202,13 +154,7 @@ const Index = () => {
                   Tap for instant emergency alert
                 </p>
               </div>
-
               <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
-
-              <div className="mt-8 flex justify-center gap-4">
-                <Button onClick={showInterstitialAd}>Show Interstitial Ad</Button>
-                <Button onClick={showRewardedAd}>Show Rewarded Ad</Button>
-              </div>
             </TabsContent>
 
             <TabsContent value="contacts">
@@ -227,8 +173,12 @@ const Index = () => {
           <div className="space-y-6">
             <div className="bg-primary text-primary-foreground p-6 rounded-lg shadow-lg">
               <h2 className="text-xl font-bold mb-2">Emergency Alert Active</h2>
-              <p className="mb-2"><strong>Type:</strong> {emergencyType}</p>
-              <p className="mb-4"><strong>Situation:</strong> {situation}</p>
+              <p className="mb-2">
+                <strong>Type:</strong> {emergencyType}
+              </p>
+              <p className="mb-4">
+                <strong>Situation:</strong> {situation}
+              </p>
               <button
                 onClick={handleBack}
                 className="bg-primary-foreground text-primary px-4 py-2 rounded-md font-semibold hover:opacity-90 transition-opacity"
@@ -237,17 +187,7 @@ const Index = () => {
               </button>
             </div>
 
-            {userLocation && (
-              <div className="bg-card rounded-lg shadow-lg overflow-hidden">
-                <LocationMap location={userLocation} />
-              </div>
-            )}
-
-            <ContactList emergencyType={emergencyType} userLocation={userLocation} />
-
-            {session?.user && userLocation && (
-              <ShareLocation userId={session.user.id} location={userLocation} situation={situation} />
-            )}
+            {userLocation && <LocationMap location={userLocation} />}
           </div>
         )}
       </main>
