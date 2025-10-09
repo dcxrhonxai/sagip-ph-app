@@ -1,11 +1,10 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase, DEFAULT_LAT, DEFAULT_LNG } from "@/integrations/supabase/client";
-import { initializeAdMob } from "@/integrations/admob";
+import { initializeAds, showInterstitialAd, showRewardedAd } from "@/integrations/admob";
 import EmergencyForm from "@/components/EmergencyForm";
 import LocationMap from "@/components/LocationMap";
 import ContactList from "@/components/ContactList";
-import ShareLocation from "@/components/ShareLocation";
 import PersonalContacts from "@/components/PersonalContacts";
 import AlertHistory from "@/components/AlertHistory";
 import { ActiveAlerts } from "@/components/ActiveAlerts";
@@ -39,11 +38,9 @@ const Index = () => {
   const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
   const { sendNotifications } = useEmergencyNotifications();
 
+  // Initialize ads (device only)
   useEffect(() => {
-    const init = async () => {
-      await initializeAdMob();
-    };
-    init();
+    initializeAds();
   }, []);
 
   useEffect(() => {
@@ -51,16 +48,16 @@ const Index = () => {
       setSession(session);
       if (!session) navigate("/auth");
     });
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (!session) navigate("/auth");
     });
+
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const handleQuickSOS = async () => {
-    handleEmergencyClick("🚨 EMERGENCY - SOS", "Quick SOS activated - Immediate help needed");
-  };
+  const handleQuickSOS = async () => handleEmergencyClick("🚨 EMERGENCY - SOS", "Quick SOS activated - Immediate help needed");
 
   const handleEmergencyClick = async (type: string, description: string, evidenceFiles?: any[]) => {
     setEmergencyType(type);
@@ -86,18 +83,19 @@ const Index = () => {
             if (data) {
               setCurrentAlertId(data.id);
               const { data: contacts } = await supabase.from("personal_contacts").select("name, phone").eq("user_id", session.user.id);
-              if (contacts?.length) {
+              if (contacts && contacts.length > 0) {
                 const { data: profile } = await supabase.from("profiles").select("full_name").eq("id", session.user.id).single();
                 const formattedContacts = contacts.map(c => ({ name: c.name, phone: c.phone, email: session.user.email || undefined }));
                 await sendNotifications(data.id, formattedContacts, type, description, location, evidenceFiles?.map(f => ({ url: f.url, type: f.type })));
               }
             }
+
             if (error) console.error("Error saving alert:", error);
           }
         },
-        () => {
-          const defaultLocation = { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
-          setUserLocation(defaultLocation);
+        (error) => {
+          console.error("Error getting location:", error);
+          setUserLocation({ lat: DEFAULT_LAT, lng: DEFAULT_LNG });
           toast.warning("Could not access your location. Using default location.");
         }
       );
@@ -109,7 +107,10 @@ const Index = () => {
 
   const handleBack = async () => {
     if (currentAlertId) {
-      await supabase.from("emergency_alerts").update({ status: "resolved", resolved_at: new Date().toISOString() }).eq("id", currentAlertId);
+      await supabase.from("emergency_alerts").update({
+        status: "resolved",
+        resolved_at: new Date().toISOString(),
+      }).eq("id", currentAlertId);
     }
     setShowEmergency(false);
     setUserLocation(null);
@@ -144,19 +145,25 @@ const Index = () => {
         {!showEmergency ? (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="emergency" className="flex items-center gap-2"><Shield className="w-4 h-4" />Emergency</TabsTrigger>
-              <TabsTrigger value="contacts" className="flex items-center gap-2"><Users className="w-4 h-4" />Contacts</TabsTrigger>
-              <TabsTrigger value="profile" className="flex items-center gap-2"><Heart className="w-4 h-4" />Profile</TabsTrigger>
-              <TabsTrigger value="history" className="flex items-center gap-2"><History className="w-4 h-4" />History</TabsTrigger>
+              <TabsTrigger value="emergency" className="flex items-center gap-2"><Shield className="w-4 h-4" /> Emergency</TabsTrigger>
+              <TabsTrigger value="contacts" className="flex items-center gap-2"><Users className="w-4 h-4" /> Contacts</TabsTrigger>
+              <TabsTrigger value="profile" className="flex items-center gap-2"><Heart className="w-4 h-4" /> Profile</TabsTrigger>
+              <TabsTrigger value="history" className="flex items-center gap-2"><History className="w-4 h-4" /> History</TabsTrigger>
             </TabsList>
 
             <TabsContent value="emergency">
-              {!alertsLoading && alerts.length > 0 && <div className="mb-6"><ActiveAlerts alerts={alerts} /></div>}
+              {!alertsLoading && alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
               <div className="mb-6">
-                <Button onClick={handleQuickSOS} className="w-full h-32 text-3xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse" size="lg">🚨 SOS</Button>
+                <Button onClick={handleQuickSOS} className="w-full h-32 text-3xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse" size="lg">
+                  🚨 SOS
+                </Button>
                 <p className="text-center text-sm text-muted-foreground mt-2">Tap for instant emergency alert</p>
               </div>
               <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
+              <div className="mt-8 flex justify-center gap-4">
+                <Button onClick={showInterstitialAd}>Show Interstitial Ad</Button>
+                <Button onClick={showRewardedAd}>Show Rewarded Ad</Button>
+              </div>
             </TabsContent>
 
             <TabsContent value="contacts"><PersonalContacts userId={session.user.id} /></TabsContent>
