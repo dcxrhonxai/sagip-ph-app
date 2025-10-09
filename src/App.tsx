@@ -9,14 +9,21 @@ import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 
 import { AudioRecorder } from "@/components/AudioRecorder";
+import { CameraCapture } from "@/components/CameraCapture";
 
 const App = () => {
   const [queryClient] = useState(() => new QueryClient());
   const [lastAudio, setLastAudio] = useState<string | null>(null);
+  const [lastPhoto, setLastPhoto] = useState<string | null>(null);
 
   const handleRecordingComplete = (audioData: string) => {
     setLastAudio(audioData);
     console.log("Recorded audio:", audioData);
+  };
+
+  const handlePhotoCapture = (photoData: string) => {
+    setLastPhoto(photoData);
+    console.log("Captured photo:", photoData);
   };
 
   return (
@@ -28,10 +35,17 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            
             <Route
               path="/audio"
               element={<AudioRecorder onRecordingComplete={handleRecordingComplete} />}
             />
+            
+            <Route
+              path="/camera"
+              element={<CameraCapture onPhotoCapture={handlePhotoCapture} />}
+            />
+
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
