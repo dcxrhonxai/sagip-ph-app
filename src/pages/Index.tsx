@@ -16,7 +16,6 @@ import { toast } from "sonner";
 import { useRealtimeAlerts } from "@/hooks/useRealtimeAlerts";
 import { useEmergencyNotifications } from "@/hooks/useEmergencyNotifications";
 import type { Session } from "@supabase/supabase-js";
-import { AdMob } from "@capacitor/admob";
 
 export interface EmergencyContact {
   id: string;
@@ -39,46 +38,47 @@ const Index = () => {
   const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
   const { sendNotifications } = useEmergencyNotifications();
 
-  // Initialize AdMob on load
+  // Dynamic AdMob import (only on mobile devices)
   useEffect(() => {
     const initAdMob = async () => {
-      try {
-        await AdMob.initialize({ initializeForTesting: false });
+      if (typeof window !== "undefined" && window.Capacitor?.isNativePlatform) {
+        try {
+          const { AdMob } = await import("@capacitor/admob");
+          await AdMob.initialize({ initializeForTesting: false });
 
-        // Show banner ad at bottom
-        await AdMob.showBanner({
-          adId: "ca-app-pub-4211898333188674/4158088739",
-          position: "BOTTOM_CENTER",
-        });
-      } catch (err) {
-        console.error("AdMob initialization failed:", err);
+          // Show banner on non-critical screens only
+          if (!showEmergency) {
+            await AdMob.showBanner({
+              adId: "ca-app-pub-4211898333188674/4158088739",
+              position: "BOTTOM_CENTER",
+            });
+          }
+        } catch (err) {
+          console.warn("AdMob not available:", err);
+        }
       }
     };
     initAdMob();
-  }, []);
+  }, [showEmergency]);
 
+  // Optional interstitial / rewarded ads (manual trigger, never during SOS)
   const showInterstitial = async () => {
-    try {
-      await AdMob.prepareInterstitial({
-        adId: "ca-app-pub-4211898333188674/3209190335",
-      });
+    if (typeof window !== "undefined" && window.Capacitor?.isNativePlatform) {
+      const { AdMob } = await import("@capacitor/admob");
+      await AdMob.prepareInterstitial({ adId: "ca-app-pub-4211898333188674/3209190335" });
       await AdMob.showInterstitial();
-    } catch (err) {
-      console.error("Error showing interstitial ad:", err);
     }
   };
 
   const showRewarded = async () => {
-    try {
-      await AdMob.prepareRewardVideoAd({
-        adId: "ca-app-pub-4211898333188674/1896108662",
-      });
+    if (typeof window !== "undefined" && window.Capacitor?.isNativePlatform) {
+      const { AdMob } = await import("@capacitor/admob");
+      await AdMob.prepareRewardVideoAd({ adId: "ca-app-pub-4211898333188674/1896108662" });
       await AdMob.showRewardVideoAd();
-    } catch (err) {
-      console.error("Error showing rewarded ad:", err);
     }
   };
 
+  // Supabase session check
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -107,10 +107,7 @@ const Index = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
-          const location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
+          const location = { lat: position.coords.latitude, lng: position.coords.longitude };
           setUserLocation(location);
 
           if (session?.user) {
@@ -160,8 +157,7 @@ const Index = () => {
             if (error) console.error("Error saving alert:", error);
           }
         },
-        (error) => {
-          console.error("Error getting location:", error);
+        () => {
           const defaultLocation = { lat: 14.5995, lng: 120.9842 };
           setUserLocation(defaultLocation);
           toast.warning("Could not access your location. Using default location.");
@@ -177,10 +173,7 @@ const Index = () => {
     if (currentAlertId) {
       await supabase
         .from("emergency_alerts")
-        .update({
-          status: "resolved",
-          resolved_at: new Date().toISOString(),
-        })
+        .update({ status: "resolved", resolved_at: new Date().toISOString() })
         .eq("id", currentAlertId);
     }
     setShowEmergency(false);
@@ -242,12 +235,7 @@ const Index = () => {
             </TabsList>
 
             <TabsContent value="emergency">
-              {!alertsLoading && alerts.length > 0 && (
-                <div className="mb-6">
-                  <ActiveAlerts alerts={alerts} />
-                </div>
-              )}
-
+              {!alertsLoading && alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
               <div className="mb-6">
                 <Button
                   onClick={handleQuickSOS}
@@ -260,10 +248,7 @@ const Index = () => {
                   Tap for instant emergency alert
                 </p>
               </div>
-
               <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
-
-              {/* Optional Ad Controls for Testing */}
               <div className="mt-8 flex justify-center gap-4">
                 <Button onClick={showInterstitial}>Show Interstitial Ad</Button>
                 <Button onClick={showRewarded}>Show Rewarded Ad</Button>
