@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="app.lovable.fcbb65b390f2441890e8a8de327e1a60">
 
-    <!-- Minimum & Target SDK -->
+    <!-- Minimum SDK and Target SDK -->
     <uses-sdk
         android:minSdkVersion="23"
         android:targetSdkVersion="35" />
@@ -20,18 +20,11 @@
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
 
-    <!-- Optional: query camera intent -->
     <queries>
         <intent>
             <action android:name="android.media.action.IMAGE_CAPTURE" />
         </intent>
     </queries>
-
-    <!-- App-specific permission -->
-    <permission
-        android:name="app.lovable.fcbb65b390f2441890e8a8de327e1a60.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
-        android:protectionLevel="signature" />
-    <uses-permission android:name="app.lovable.fcbb65b390f2441890e8a8de327e1a60.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
 
     <application
         android:label="@string/app_name"
@@ -46,7 +39,6 @@
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-4211898333188674~9892796996" />
 
-        <!-- Main Activity -->
         <activity
             android:name="app.lovable.fcbb65b390f2441890e8a8de327e1a60.MainActivity"
             android:exported="true"
@@ -69,7 +61,7 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- Startup Providers -->
+        <!-- Initialization Providers -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:exported="false"
