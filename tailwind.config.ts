@@ -20,6 +20,8 @@ const config: Config = {
     },
     extend: {
       colors: {
+        // This is correctly defined.
+        // It should be used with the class `border-border`.
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
