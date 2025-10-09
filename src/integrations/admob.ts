@@ -1,39 +1,18 @@
-// src/integrations/admob/admob.ts
 export const initAdMob = async () => {
-  if (window?.Capacitor?.isNative) {
-    const { AdMob } = await import("@capacitor/admob");
+  if (window.Capacitor?.isNative) {
     try {
+      const { AdMob } = await import('@capacitor/admob');
       await AdMob.initialize({ initializeForTesting: false });
+
+      // Show banner
       await AdMob.showBanner({
-        adId: "ca-app-pub-xxxx/yyyy", // Replace with your real banner ad ID
-        position: "BOTTOM_CENTER",
+        adId: import.meta.env.VITE_ADMOB_BANNER_ID,
+        position: 'BOTTOM_CENTER',
       });
-    } catch (err) {
-      console.error("AdMob failed:", err);
-    }
-  }
-};
 
-export const showInterstitialAd = async () => {
-  if (window?.Capacitor?.isNative) {
-    const { AdMob } = await import("@capacitor/admob");
-    try {
-      await AdMob.prepareInterstitial({ adId: "ca-app-pub-xxxx/yyyy" });
-      await AdMob.showInterstitial();
+      return AdMob;
     } catch (err) {
-      console.error("Interstitial Ad failed:", err);
-    }
-  }
-};
-
-export const showRewardedAd = async () => {
-  if (window?.Capacitor?.isNative) {
-    const { AdMob } = await import("@capacitor/admob");
-    try {
-      await AdMob.prepareRewardVideoAd({ adId: "ca-app-pub-xxxx/yyyy" });
-      await AdMob.showRewardVideoAd();
-    } catch (err) {
-      console.error("Rewarded Ad failed:", err);
+      console.error('AdMob init failed:', err);
     }
   }
 };
