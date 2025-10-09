@@ -1,13 +1,13 @@
+// src/integrations/admob/admob.ts
 export const initAdMob = async () => {
   if (window?.Capacitor?.isNative) {
+    const { AdMob } = await import("@capacitor/admob");
     try {
-      const { AdMob } = await import("@capacitor/admob");
       await AdMob.initialize({ initializeForTesting: false });
       await AdMob.showBanner({
-        adId: "ca-app-pub-4211898333188674/4158088739",
+        adId: "ca-app-pub-xxxx/yyyy", // Replace with your real banner ad ID
         position: "BOTTOM_CENTER",
       });
-      return AdMob;
     } catch (err) {
       console.error("AdMob failed:", err);
     }
@@ -15,17 +15,25 @@ export const initAdMob = async () => {
 };
 
 export const showInterstitialAd = async () => {
-  const { AdMob } = await import("@capacitor/admob");
-  await AdMob.prepareInterstitial({
-    adId: "ca-app-pub-4211898333188674/3209190335",
-  });
-  await AdMob.showInterstitial();
+  if (window?.Capacitor?.isNative) {
+    const { AdMob } = await import("@capacitor/admob");
+    try {
+      await AdMob.prepareInterstitial({ adId: "ca-app-pub-xxxx/yyyy" });
+      await AdMob.showInterstitial();
+    } catch (err) {
+      console.error("Interstitial Ad failed:", err);
+    }
+  }
 };
 
 export const showRewardedAd = async () => {
-  const { AdMob } = await import("@capacitor/admob");
-  await AdMob.prepareRewardVideoAd({
-    adId: "ca-app-pub-4211898333188674/1896108662",
-  });
-  await AdMob.showRewardVideoAd();
+  if (window?.Capacitor?.isNative) {
+    const { AdMob } = await import("@capacitor/admob");
+    try {
+      await AdMob.prepareRewardVideoAd({ adId: "ca-app-pub-xxxx/yyyy" });
+      await AdMob.showRewardVideoAd();
+    } catch (err) {
+      console.error("Rewarded Ad failed:", err);
+    }
+  }
 };
