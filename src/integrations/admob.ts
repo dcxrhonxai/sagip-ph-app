@@ -1,36 +1,21 @@
-// Wrap AdMob so Vite doesn't break SSR/build
-export const initAdMob = async () => {
-  if (typeof window === "undefined") return; // Skip server-side
-  try {
-    const { AdMob } = await import('@capacitor/admob');
-    await AdMob.initialize({ initializeForTesting: false });
-    await AdMob.showBanner({
-      adId: import.meta.env.VITE_ADMOB_BANNER_ID,
-      position: 'BOTTOM_CENTER',
-    });
-  } catch (err) {
-    console.warn("AdMob not available:", err);
-  }
-};
+// Wrap AdMob usage so Vite does not break SSR/build
+export const initializeAdMob = async () => {
+  if (typeof window !== 'undefined' && 'Capacitor' in window) {
+    try {
+      const { AdMob } = await import('@capacitor/admob');
+      await AdMob.initialize({ initializeForTesting: false });
 
-export const showInterstitial = async () => {
-  if (typeof window === "undefined") return;
-  try {
-    const { AdMob } = await import('@capacitor/admob');
-    await AdMob.prepareInterstitial({ adId: import.meta.env.VITE_ADMOB_INTERSTITIAL_ID });
-    await AdMob.showInterstitial();
-  } catch (err) {
-    console.warn("Interstitial Ad failed:", err);
-  }
-};
+      // Show bottom banner
+      await AdMob.showBanner({
+        adId: "ca-app-pub-4211898333188674/4158088739",
+        position: "BOTTOM_CENTER",
+      });
 
-export const showRewarded = async () => {
-  if (typeof window === "undefined") return;
-  try {
-    const { AdMob } = await import('@capacitor/admob');
-    await AdMob.prepareRewardVideoAd({ adId: import.meta.env.VITE_ADMOB_REWARDED_ID });
-    await AdMob.showRewardVideoAd();
-  } catch (err) {
-    console.warn("Rewarded Ad failed:", err);
+      return AdMob;
+    } catch (err) {
+      console.error('AdMob initialization failed:', err);
+      return null;
+    }
   }
+  return null;
 };
