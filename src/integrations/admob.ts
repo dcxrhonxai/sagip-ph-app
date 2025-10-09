@@ -1,7 +1,7 @@
 export const initAdMob = async () => {
   if (window.Capacitor?.isNative) {
     try {
-      const { AdMob } = await import('@capacitor/admob');
+      const { AdMob } = await import('@capacitor-community/admob');
       await AdMob.initialize({ initializeForTesting: false });
 
       // Show banner
