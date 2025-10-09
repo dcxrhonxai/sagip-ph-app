@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
-/*
-  The `@theme` directive is where you should define your custom
-  colors, gradients, and other theme variables for Tailwind v4.
-  We will map your existing CSS variables to Tailwind's color names here.
-*/
 @theme {
+  /*
+    Define custom colors with the --color- prefix.
+    Tailwind will then automatically generate utilities like bg-background,
+    text-background, border-background, etc.
+  */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
@@ -39,26 +39,23 @@
   --color-success-green: var(--success-green);
   --color-warning-yellow: var(--warning-yellow);
 
-  --sidebar-background: var(--sidebar-background);
-  --sidebar-foreground: var(--sidebar-foreground);
-  --sidebar-primary: var(--sidebar-primary);
-  --sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --sidebar-accent: var(--sidebar-accent);
-  --sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --sidebar-border: var(--sidebar-border);
-  --sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-background: var(--sidebar-background);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 
   --radius: var(--radius);
 }
 
-/*
-  Your existing CSS variables for the design system can remain
-  for other purposes, but `@theme` is now used by Tailwind.
-*/
 @layer base {
   :root {
     --background: 0 0% 98%;
     --foreground: 0 0% 10%;
+    /* ... (rest of your CSS variables remain unchanged) ... */
     --card: 0 0% 100%;
     --card-foreground: 0 0% 10%;
     --popover: 0 0% 100%;
@@ -94,6 +91,7 @@
   }
 
   .dark {
+    /* ... (rest of your dark mode variables remain unchanged) ... */
     --background: 0 0% 10%;
     --foreground: 0 0% 98%;
     --card: 0 0% 15%;
@@ -126,6 +124,7 @@
 
 @layer base {
   body {
-    @apply bg-color-background text-color-foreground;
+    /* Now correctly uses the new utility name */
+    @apply bg-background text-foreground;
   }
 }
