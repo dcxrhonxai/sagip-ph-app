@@ -1,12 +1,12 @@
 // /src/integrations/supabase/client.ts
-import { createClient } from '@supabase/supabase-js';
-import type { Database } from './types';
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "./types";
 
-// Vite requires variables to have VITE_ prefix
+// Vite environment variables (must start with VITE_)
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Create and export the Supabase client
+// Supabase client
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
     storage: localStorage,
@@ -15,6 +15,6 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
   },
 });
 
-// Optional: default location for fallback
-export const DEFAULT_LAT = parseFloat(import.meta.env.VITE_DEFAULT_LAT || '14.5995');
-export const DEFAULT_LNG = parseFloat(import.meta.env.VITE_DEFAULT_LNG || '120.9842');
+// Default location fallback
+export const DEFAULT_LAT = parseFloat(import.meta.env.VITE_DEFAULT_LAT || "14.5995");
+export const DEFAULT_LNG = parseFloat(import.meta.env.VITE_DEFAULT_LNG || "120.9842");
