@@ -16,7 +16,6 @@
     "@capacitor-community/admob": "^7.0.3",
     "@capacitor/camera": "^7.0.2",
     "@capacitor/android": "^7.4.3",
-    "@capacitor/camera": "^7.0.2",
     "@capacitor/core": "^7.4.3",
     "@capacitor/ios": "^7.4.3",
     "@radix-ui/react-label": "^2.1.7",
