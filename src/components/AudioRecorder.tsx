@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { VoiceRecorder } from "capacitor-voice-recorder";
+import { Media, RecordingFile } from "@capacitor-community/media";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Mic, Square, Play, Trash2 } from "lucide-react";
@@ -13,29 +13,21 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioData, setAudioData] = useState<string | null>(null);
   const [duration, setDuration] = useState(0);
+  const [recordingFile, setRecordingFile] = useState<RecordingFile | null>(null);
   const { toast } = useToast();
 
   const startRecording = async () => {
     try {
-      const hasPermission = await VoiceRecorder.requestAudioRecordingPermission();
-      
-      if (hasPermission.value) {
-        await VoiceRecorder.startRecording();
-        setIsRecording(true);
-        setDuration(0);
-        
-        const interval = setInterval(() => {
-          setDuration((prev) => prev + 1);
-        }, 1000);
+      const recording = await Media.createRecording({ title: "New Recording" });
+      setRecordingFile(recording);
+      setIsRecording(true);
+      setDuration(0);
 
-        (window as any).recordingInterval = interval;
-      } else {
-        toast({
-          title: "Permission denied",
-          description: "Microphone permission is required to record audio",
-          variant: "destructive",
-        });
-      }
+      const interval = setInterval(() => {
+        setDuration((prev) => prev + 1);
+      }, 1000);
+
+      (window as any).recordingInterval = interval;
     } catch (error) {
       toast({
         title: "Error",
@@ -48,19 +40,21 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
 
   const stopRecording = async () => {
     try {
-      const result = await VoiceRecorder.stopRecording();
-      
+      if (!recordingFile) return;
+
+      const stoppedRecording = await Media.stopRecording({ recording: recordingFile });
+
       if ((window as any).recordingInterval) {
         clearInterval((window as any).recordingInterval);
       }
 
       setIsRecording(false);
-      
-      if (result.value && result.value.recordDataBase64) {
-        const audioDataUrl = `data:audio/aac;base64,${result.value.recordDataBase64}`;
-        setAudioData(audioDataUrl);
-        onRecordingComplete(audioDataUrl);
-        
+
+      if (stoppedRecording.filePath) {
+        const audioUrl = stoppedRecording.filePath;
+        setAudioData(audioUrl);
+        onRecordingComplete(audioUrl);
+
         toast({
           title: "Recording complete",
           description: `Recorded ${duration} seconds of audio`,
@@ -86,18 +80,19 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
   const deleteRecording = () => {
     setAudioData(null);
     setDuration(0);
+    setRecordingFile(null);
   };
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   return (
     <Card className="p-4 space-y-4">
       <h3 className="text-lg font-semibold">Audio Recording</h3>
-      
+
       <div className="space-y-4">
         {!isRecording && !audioData && (
           <Button onClick={startRecording} className="w-full">
