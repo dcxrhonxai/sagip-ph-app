@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Media, RecordingFile } from "@capacitor-community/media";
+import { VoiceRecorder } from "@independo/capacitor-voice-recorder";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Mic, Square, Play, Trash2 } from "lucide-react";
@@ -13,13 +13,21 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioData, setAudioData] = useState<string | null>(null);
   const [duration, setDuration] = useState(0);
-  const [recordingFile, setRecordingFile] = useState<RecordingFile | null>(null);
   const { toast } = useToast();
 
   const startRecording = async () => {
     try {
-      const recording = await Media.createRecording({ title: "New Recording" });
-      setRecordingFile(recording);
+      const permission = await VoiceRecorder.requestAudioRecordingPermission();
+      if (!permission.value) {
+        toast({
+          title: "Permission denied",
+          description: "Microphone permission is required to record audio",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      await VoiceRecorder.startRecording();
       setIsRecording(true);
       setDuration(0);
 
@@ -29,44 +37,31 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
 
       (window as any).recordingInterval = interval;
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to start recording",
-        variant: "destructive",
-      });
-      console.error("Error starting recording:", error);
+      console.error(error);
+      toast({ title: "Error", description: "Failed to start recording", variant: "destructive" });
     }
   };
 
   const stopRecording = async () => {
     try {
-      if (!recordingFile) return;
-
-      const stoppedRecording = await Media.stopRecording({ recording: recordingFile });
-
-      if ((window as any).recordingInterval) {
-        clearInterval((window as any).recordingInterval);
-      }
+      const result = await VoiceRecorder.stopRecording();
+      if ((window as any).recordingInterval) clearInterval((window as any).recordingInterval);
 
       setIsRecording(false);
 
-      if (stoppedRecording.filePath) {
-        const audioUrl = stoppedRecording.filePath;
+      if (result.value) {
+        const audioUrl = `data:audio/aac;base64,${result.value.recordDataBase64}`;
         setAudioData(audioUrl);
         onRecordingComplete(audioUrl);
 
         toast({
           title: "Recording complete",
-          description: `Recorded ${duration} seconds of audio`,
+          description: `Recorded ${duration} seconds`,
         });
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to stop recording",
-        variant: "destructive",
-      });
-      console.error("Error stopping recording:", error);
+      console.error(error);
+      toast({ title: "Error", description: "Failed to stop recording", variant: "destructive" });
     }
   };
 
@@ -80,7 +75,6 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
   const deleteRecording = () => {
     setAudioData(null);
     setDuration(0);
-    setRecordingFile(null);
   };
 
   const formatDuration = (seconds: number) => {
@@ -96,8 +90,7 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
       <div className="space-y-4">
         {!isRecording && !audioData && (
           <Button onClick={startRecording} className="w-full">
-            <Mic className="mr-2 h-4 w-4" />
-            Start Recording
+            <Mic className="mr-2 h-4 w-4" /> Start Recording
           </Button>
         )}
 
@@ -108,8 +101,7 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
               <span className="font-mono text-lg">{formatDuration(duration)}</span>
             </div>
             <Button onClick={stopRecording} variant="destructive" className="w-full">
-              <Square className="mr-2 h-4 w-4" />
-              Stop Recording
+              <Square className="mr-2 h-4 w-4" /> Stop Recording
             </Button>
           </div>
         )}
@@ -121,12 +113,10 @@ export const AudioRecorder = ({ onRecordingComplete }: AudioRecorderProps) => {
             </div>
             <div className="flex gap-2">
               <Button onClick={playAudio} variant="secondary" className="flex-1">
-                <Play className="mr-2 h-4 w-4" />
-                Play
+                <Play className="mr-2 h-4 w-4" /> Play
               </Button>
               <Button onClick={deleteRecording} variant="destructive" className="flex-1">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
+                <Trash2 className="mr-2 h-4 w-4" /> Delete
               </Button>
             </div>
           </div>
