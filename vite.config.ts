@@ -1,27 +1,22 @@
+// vite.config.ts
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import path from "path";
-import tailwindcss from '@tailwindcss/vite'; // Import the new Tailwind CSS plugin
 
-// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [
-    react(),
-    tailwindcss() // Add the new Tailwind CSS plugin here
-  ],
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "src"),
-    },
-  },
+  plugins: [react()],
   build: {
     rollupOptions: {
-      // Prevent Vite from bundling Capacitor plugins for SSR / web
-      external: ["@capacitor/admob", "@capacitor/core"],
+      output: {
+        manualChunks: {
+          // Separate vendor libraries into chunks
+          react: ["react", "react-dom", "react-router-dom"],
+          capacitor: ["@capacitor/core", "@capacitor/android", "@capacitor/ios", "@capacitor-community/admob"],
+          supabase: ["@supabase/supabase-js"],
+          query: ["@tanstack/react-query"],
+        },
+      },
+      chunkFileNames: "assets/[name]-[hash].js",
     },
-  },
-  server: {
-    port: 5173,
-    open: true,
+    chunkSizeWarningLimit: 600, // optional, increase limit if needed
   },
 });
