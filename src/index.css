@@ -33,7 +33,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  
+
   --color-emergency-red: var(--emergency-red);
   --color-emergency-red-dark: var(--emergency-red-dark);
   --color-success-green: var(--success-green);
@@ -59,10 +59,8 @@
   :root {
     --background: 0 0% 98%;
     --foreground: 0 0% 10%;
-    /* All your other color variable definitions */
     --card: 0 0% 100%;
     --card-foreground: 0 0% 10%;
-    /* ... and so on for all your variables ... */
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 10%;
     --primary: 354 70% 54%;
@@ -98,7 +96,6 @@
   .dark {
     --background: 0 0% 10%;
     --foreground: 0 0% 98%;
-    /* ... and so on for all dark mode variables ... */
     --card: 0 0% 15%;
     --card-foreground: 0 0% 98%;
     --popover: 0 0% 15%;
@@ -128,10 +125,6 @@
 }
 
 @layer base {
-  * {
-    @apply border-color-border;
-  }
-
   body {
     @apply bg-color-background text-color-foreground;
   }
