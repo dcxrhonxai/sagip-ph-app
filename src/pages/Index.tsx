@@ -38,16 +38,15 @@ const Index = () => {
   const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
   const { sendNotifications } = useEmergencyNotifications();
 
-  // Conditional AdMob import to avoid Vite SSR/build issues
+  // Initialize AdMob (device only)
   useEffect(() => {
     const initAdMob = async () => {
-      if (typeof window !== "undefined" && window.Capacitor) {
+      if ((window as any).Capacitor?.isNativePlatform?.()) {
         try {
-          const { AdMob } = await import("@capacitor/admob");
+          const { AdMob } = await import("@capacitor-community/admob");
           await AdMob.initialize({ initializeForTesting: false });
-
           await AdMob.showBanner({
-            adId: "ca-app-pub-4211898333188674/4158088739",
+            adId: import.meta.env.VITE_ADMOB_BANNER_ID,
             position: "BOTTOM_CENTER",
           });
         } catch (err) {
@@ -59,10 +58,12 @@ const Index = () => {
   }, []);
 
   const showInterstitial = async () => {
-    if (typeof window !== "undefined" && window.Capacitor) {
-      const { AdMob } = await import("@capacitor/admob");
+    if ((window as any).Capacitor?.isNativePlatform?.()) {
       try {
-        await AdMob.prepareInterstitial({ adId: "ca-app-pub-4211898333188674/3209190335" });
+        const { AdMob } = await import("@capacitor-community/admob");
+        await AdMob.prepareInterstitial({
+          adId: import.meta.env.VITE_ADMOB_INTERSTITIAL_ID,
+        });
         await AdMob.showInterstitial();
       } catch (err) {
         console.error("Error showing interstitial ad:", err);
@@ -71,10 +72,12 @@ const Index = () => {
   };
 
   const showRewarded = async () => {
-    if (typeof window !== "undefined" && window.Capacitor) {
-      const { AdMob } = await import("@capacitor/admob");
+    if ((window as any).Capacitor?.isNativePlatform?.()) {
       try {
-        await AdMob.prepareRewardVideoAd({ adId: "ca-app-pub-4211898333188674/1896108662" });
+        const { AdMob } = await import("@capacitor-community/admob");
+        await AdMob.prepareRewardVideoAd({
+          adId: import.meta.env.VITE_ADMOB_REWARDED_ID,
+        });
         await AdMob.showRewardVideoAd();
       } catch (err) {
         console.error("Error showing rewarded ad:", err);
@@ -82,6 +85,7 @@ const Index = () => {
     }
   };
 
+  // Supabase session handling
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -107,6 +111,7 @@ const Index = () => {
     setSituation(description);
     setShowEmergency(true);
 
+    const fallbackLocation = { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
@@ -138,12 +143,6 @@ const Index = () => {
                 .eq("user_id", session.user.id);
 
               if (contacts && contacts.length > 0) {
-                const { data: profile } = await supabase
-                  .from("profiles")
-                  .select("full_name")
-                  .eq("id", session.user.id)
-                  .single();
-
                 const formattedContacts = contacts.map((c) => ({
                   name: c.name,
                   phone: c.phone,
@@ -163,15 +162,13 @@ const Index = () => {
             if (error) console.error("Error saving alert:", error);
           }
         },
-        (error) => {
-          console.error("Error getting location:", error);
-          const defaultLocation = { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
-          setUserLocation(defaultLocation);
+        () => {
+          setUserLocation(fallbackLocation);
           toast.warning("Could not access your location. Using default location.");
         }
       );
     } else {
-      setUserLocation({ lat: DEFAULT_LAT, lng: DEFAULT_LNG });
+      setUserLocation(fallbackLocation);
       toast.warning("Geolocation not supported. Using default location.");
     }
   };
@@ -227,30 +224,21 @@ const Index = () => {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="emergency" className="flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                Emergency
+                <Shield className="w-4 h-4" /> Emergency
               </TabsTrigger>
               <TabsTrigger value="contacts" className="flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                Contacts
+                <Users className="w-4 h-4" /> Contacts
               </TabsTrigger>
               <TabsTrigger value="profile" className="flex items-center gap-2">
-                <Heart className="w-4 h-4" />
-                Profile
+                <Heart className="w-4 h-4" /> Profile
               </TabsTrigger>
               <TabsTrigger value="history" className="flex items-center gap-2">
-                <History className="w-4 h-4" />
-                History
+                <History className="w-4 h-4" /> History
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="emergency">
-              {!alertsLoading && alerts.length > 0 && (
-                <div className="mb-6">
-                  <ActiveAlerts alerts={alerts} />
-                </div>
-              )}
-
+              {!alertsLoading && alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
               <div className="mb-6">
                 <Button
                   onClick={handleQuickSOS}
@@ -266,7 +254,7 @@ const Index = () => {
 
               <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
 
-              {/* Optional Ad Controls for Testing */}
+              {/* Optional Ad Controls */}
               <div className="mt-8 flex justify-center gap-4">
                 <Button onClick={showInterstitial}>Show Interstitial Ad</Button>
                 <Button onClick={showRewarded}>Show Rewarded Ad</Button>
@@ -289,12 +277,8 @@ const Index = () => {
           <div className="space-y-6">
             <div className="bg-primary text-primary-foreground p-6 rounded-lg shadow-lg">
               <h2 className="text-xl font-bold mb-2">Emergency Alert Active</h2>
-              <p className="mb-2">
-                <strong>Type:</strong> {emergencyType}
-              </p>
-              <p className="mb-4">
-                <strong>Situation:</strong> {situation}
-              </p>
+              <p className="mb-2"><strong>Type:</strong> {emergencyType}</p>
+              <p className="mb-4"><strong>Situation:</strong> {situation}</p>
               <button
                 onClick={handleBack}
                 className="bg-primary-foreground text-primary px-4 py-2 rounded-md font-semibold hover:opacity-90 transition-opacity"
