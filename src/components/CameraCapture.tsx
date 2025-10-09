@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
+import { Camera, CameraResultType } from '@capacitor/camera';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CameraIcon, Video, X } from "lucide-react";
