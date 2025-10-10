@@ -22,7 +22,7 @@
         android:supportsRtl="true"
         android:appComponentFactory="androidx.core.app.CoreComponentFactory">
 
-        <!-- Firebase Messaging Service -->
+        <!-- ✅ Firebase Messaging Service (Your Custom Handler) -->
         <service
             android:name=".services.MyFirebaseMessagingService"
             android:exported="false">
@@ -31,12 +31,21 @@
             </intent-filter>
         </service>
 
-        <!-- AdMob -->
+        <!-- ✅ Capacitor Push Notifications Service (Required for FCM token handling) -->
+        <service
+            android:name="com.getcapacitor.plugin.pushnotifications.MessagingService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- ✅ AdMob -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-4211898333188674~9892796996" />
 
-        <!-- Main Activity -->
+        <!-- ✅ Main Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -48,7 +57,7 @@
             </intent-filter>
         </activity>
 
-        <!-- File Provider -->
+        <!-- ✅ File Provider -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="app.lovable.fcbb65b390f2441890e8a8de327e1a60.fileprovider"
