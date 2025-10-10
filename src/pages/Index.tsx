@@ -142,6 +142,7 @@ const Index = () => {
 
             <TabsContent value="emergency">
               {!alertsLoading && alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
+
               <div className="mb-6">
                 <Button
                   onClick={handleQuickSOS}
@@ -157,33 +158,36 @@ const Index = () => {
 
               <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
 
-              {/* Media Capture Components */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                <AudioRecorder onRecordingComplete={setLastAudio} />
-                <CameraCapture onPhotoCapture={setLastPhoto} />
-                <VideoRecorder onVideoComplete={setLastVideo} />
-              </div>
+              {/* Media Hub Component */}
+              <div className="mt-6 p-4 bg-secondary/10 rounded-lg space-y-4 shadow-md">
+                <h3 className="font-bold text-lg text-center mb-2">Media Hub</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <AudioRecorder onRecordingComplete={setLastAudio} />
+                  <CameraCapture onPhotoCapture={setLastPhoto} />
+                  <VideoRecorder onVideoComplete={setLastVideo} />
+                </div>
 
-              {/* Compact Media Preview Section */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-                {lastAudio && (
-                  <div className="p-3 bg-secondary/10 rounded-lg flex flex-col items-center">
-                    <p className="font-semibold text-sm">Audio</p>
-                    <audio src={lastAudio} controls className="w-full mt-2" />
-                  </div>
-                )}
-                {lastPhoto && (
-                  <div className="p-3 bg-secondary/10 rounded-lg flex flex-col items-center">
-                    <p className="font-semibold text-sm">Photo</p>
-                    <img src={lastPhoto} alt="Captured" className="w-full mt-2 rounded-lg object-cover" />
-                  </div>
-                )}
-                {lastVideo && (
-                  <div className="p-3 bg-secondary/10 rounded-lg flex flex-col items-center">
-                    <p className="font-semibold text-sm">Video</p>
-                    <video src={lastVideo} controls className="w-full mt-2 rounded-lg object-cover" />
-                  </div>
-                )}
+                {/* Previews */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                  {lastAudio && (
+                    <div className="p-2 bg-background rounded-md flex flex-col items-center">
+                      <p className="font-semibold text-sm">Audio</p>
+                      <audio src={lastAudio} controls className="w-full mt-1" />
+                    </div>
+                  )}
+                  {lastPhoto && (
+                    <div className="p-2 bg-background rounded-md flex flex-col items-center">
+                      <p className="font-semibold text-sm">Photo</p>
+                      <img src={lastPhoto} alt="Captured" className="w-full mt-1 rounded-md object-cover" />
+                    </div>
+                  )}
+                  {lastVideo && (
+                    <div className="p-2 bg-background rounded-md flex flex-col items-center">
+                      <p className="font-semibold text-sm">Video</p>
+                      <video src={lastVideo} controls className="w-full mt-1 rounded-md object-cover" />
+                    </div>
+                  )}
+                </div>
               </div>
             </TabsContent>
 
@@ -203,12 +207,8 @@ const Index = () => {
           <div className="space-y-6">
             <div className="bg-primary text-primary-foreground p-6 rounded-lg shadow-lg">
               <h2 className="text-xl font-bold mb-2">Emergency Alert Active</h2>
-              <p className="mb-2">
-                <strong>Type:</strong> {emergencyType}
-              </p>
-              <p className="mb-4">
-                <strong>Situation:</strong> {situation}
-              </p>
+              <p className="mb-2"><strong>Type:</strong> {emergencyType}</p>
+              <p className="mb-4"><strong>Situation:</strong> {situation}</p>
               <button
                 onClick={handleBack}
                 className="bg-primary-foreground text-primary px-4 py-2 rounded-md font-semibold hover:opacity-90 transition-opacity"
@@ -216,7 +216,6 @@ const Index = () => {
                 Cancel Alert
               </button>
             </div>
-
             {userLocation && <LocationMap location={userLocation} />}
           </div>
         )}
