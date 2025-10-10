@@ -20,6 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import type { Session } from '@supabase/supabase-js';
 import { initPushService } from "../services/pushService";
+import { pushService } from './services/pushService';
 
 const Index = () => {
   const navigate = useNavigate();
