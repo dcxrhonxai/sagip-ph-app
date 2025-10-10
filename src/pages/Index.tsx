@@ -158,6 +158,7 @@ const Index = () => {
                   Tap for instant emergency alert
                 </p>
               </div>
+
               <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
 
               {/* Media Capture Components */}
