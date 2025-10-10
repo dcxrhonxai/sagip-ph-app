@@ -1,37 +1,38 @@
 # fastlane/Fastfile for sagip-ph-app
-# Appflow-ready lane: builds Debug & Release APK & AAB
+# Appflow-ready: builds Debug & Release APK & AAB safely
 
 default_platform(:android)
 
 platform :android do
 
-  desc "Appflow-ready full build: npm install, frontend build, Capacitor sync, Gradle builds"
+  desc "Full Appflow-safe build: npm install, frontend build, Capacitor sync, Gradle builds"
   lane :build_all do
 
-    # --- Step 0: Set JAVA_HOME dynamically ---
     require 'rbconfig'
+
+    # --- Step 0: Set JAVA_HOME dynamically ---
     if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
-      # Windows local path (short path avoids spaces)
       ENV["JAVA_HOME"] ||= "C:\\Progra~1\\Java\\jdk-17"
     else
-      # Linux / Appflow CI path
       ENV["JAVA_HOME"] ||= "/usr/lib/jvm/java-17-openjdk-amd64"
     end
     UI.message("ℹ️ JAVA_HOME is set to: #{ENV['JAVA_HOME']}")
 
-    # --- Step 1: Install npm dependencies ---
-    UI.message("📦 Installing npm dependencies...")
-    sh("npm install")
+    # --- Step 1: Ensure node_modules exist ---
+    unless Dir.exist?("node_modules")
+      UI.message("📦 Installing npm dependencies...")
+      sh("npm install")
+    end
 
-    # --- Step 2: Build frontend ---
+    # --- Step 2: Build frontend assets ---
     UI.message("🏗️ Building frontend (web assets)...")
     sh("npm run build")
 
-    # --- Step 3: Sync Capacitor ---
+    # --- Step 3: Sync Capacitor to Android ---
     UI.message("🔗 Syncing Capacitor Android...")
     sh("npx cap sync android")
 
-    # --- Step 4: Gradle builds ---
+    # --- Step 4: Build APK & AAB via Gradle ---
     gradle_dir = "./android"
 
     UI.message("⚡ Building Debug APK & AAB...")
@@ -44,12 +45,12 @@ platform :android do
     gradle(task: "bundleRelease", project_dir: gradle_dir)
     UI.success("✅ Release build finished. Outputs in android/app/build/outputs/")
 
-    # --- Optional: Print output files ---
-    UI.message("📁 Build outputs can be found in:")
-    sh("ls -1 #{gradle_dir}/app/build/outputs/apk/debug")
-    sh("ls -1 #{gradle_dir}/app/build/outputs/apk/release")
-    sh("ls -1 #{gradle_dir}/app/build/outputs/bundle/debug")
-    sh("ls -1 #{gradle_dir}/app/build/outputs/bundle/release")
+    # --- Optional: List output files ---
+    UI.message("📁 Build outputs:")
+    sh("ls -1 #{gradle_dir}/app/build/outputs/apk/debug || true")
+    sh("ls -1 #{gradle_dir}/app/build/outputs/apk/release || true")
+    sh("ls -1 #{gradle_dir}/app/build/outputs/bundle/debug || true")
+    sh("ls -1 #{gradle_dir}/app/build/outputs/bundle/release || true")
 
   end
 
