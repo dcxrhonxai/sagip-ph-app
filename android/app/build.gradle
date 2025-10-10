@@ -1,5 +1,5 @@
 // ------------------------------------------------------------
-// ✅ CLEAN + VERIFIED FOR GRADLE 8 / CAPACITOR / APPFLOW
+// ✅ APP-LEVEL BUILD.GRADLE — CLEAN + VERIFIED
 // ------------------------------------------------------------
 
 plugins {
@@ -36,7 +36,6 @@ android {
         }
     }
 
-    // ✅ Use Java 17 for Gradle 8 compatibility
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
