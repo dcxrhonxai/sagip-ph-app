@@ -8,6 +8,9 @@ import PersonalContacts from '@/components/PersonalContacts';
 import AlertHistory from '@/components/AlertHistory';
 import { ActiveAlerts } from '@/components/ActiveAlerts';
 import { EmergencyProfile } from '@/components/EmergencyProfile';
+import { AudioRecorder } from '@/components/AudioRecorder';
+import { CameraCapture } from '@/components/CameraCapture';
+import { VideoRecorder } from '@/components/VideoRecorder';
 import { Shield, LogOut, History, Users, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -26,10 +29,14 @@ const Index = () => {
   const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('emergency');
 
+  const [lastAudio, setLastAudio] = useState<string | null>(null);
+  const [lastPhoto, setLastPhoto] = useState<string | null>(null);
+  const [lastVideo, setLastVideo] = useState<string | null>(null);
+
   const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
   const { sendNotifications } = useEmergencyNotifications();
 
-  // Initialize AdMob (Vite-safe)
+  // Initialize AdMob
   useEffect(() => {
     initAdMob();
   }, []);
@@ -48,12 +55,10 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  // Handle Quick SOS
   const handleQuickSOS = async () => {
     handleEmergencyClick('🚨 EMERGENCY - SOS', 'Quick SOS activated - Immediate help needed');
   };
 
-  // Handle Emergency Alert
   const handleEmergencyClick = async (type: string, description: string, evidenceFiles?: any[]) => {
     setEmergencyType(type);
     setSituation(description);
@@ -79,7 +84,6 @@ const Index = () => {
         .single();
 
       if (data) setCurrentAlertId(data.id);
-
       if (error) console.error('Error saving alert:', error);
     } catch (err) {
       console.error(err);
@@ -155,6 +159,35 @@ const Index = () => {
                 </p>
               </div>
               <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
+
+              {/* Media Capture Components */}
+              <div className="space-y-4 mt-6">
+                <AudioRecorder onRecordingComplete={setLastAudio} />
+                <CameraCapture onPhotoCapture={setLastPhoto} />
+                <VideoRecorder onVideoComplete={setLastVideo} />
+              </div>
+
+              {/* Media Preview Section */}
+              <div className="mt-6 space-y-4">
+                {lastAudio && (
+                  <div className="p-4 bg-secondary/10 rounded-lg">
+                    <p className="font-semibold">Last Recorded Audio:</p>
+                    <audio src={lastAudio} controls className="w-full mt-2" />
+                  </div>
+                )}
+                {lastPhoto && (
+                  <div className="p-4 bg-secondary/10 rounded-lg">
+                    <p className="font-semibold">Last Captured Photo:</p>
+                    <img src={lastPhoto} alt="Captured" className="w-full mt-2 rounded-lg" />
+                  </div>
+                )}
+                {lastVideo && (
+                  <div className="p-4 bg-secondary/10 rounded-lg">
+                    <p className="font-semibold">Last Recorded Video:</p>
+                    <video src={lastVideo} controls className="w-full mt-2 rounded-lg" />
+                  </div>
+                )}
+              </div>
             </TabsContent>
 
             <TabsContent value="contacts">
