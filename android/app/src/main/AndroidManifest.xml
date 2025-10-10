@@ -3,25 +3,24 @@
     package="app.lovable.fcbb65b390f2441890e8a8de327e1a60">
 
     <!-- Permissions -->
-    <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-    <uses-permission android:name="android.permission.CAMERA"/>
-    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
-    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 
-    <!-- Needed for camera intents -->
     <queries>
         <intent>
             <action android:name="android.media.action.IMAGE_CAPTURE" />
         </intent>
     </queries>
 
-    <!-- Custom permission (optional for internal receivers) -->
+    <!-- Custom permission (optional) -->
     <permission
         android:name="app.lovable.fcbb65b390f2441890e8a8de327e1a60.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
         android:protectionLevel="signature" />
@@ -35,7 +34,12 @@
         android:supportsRtl="true"
         android:appComponentFactory="androidx.core.app.CoreComponentFactory">
 
-        <!-- ✅ Main Activity (Capacitor entry point) -->
+        <!-- AdMob App ID -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="ca-app-pub-4211898333188674~9892796996" />
+
+        <!-- Main Activity -->
         <activity
             android:name="app.lovable.fcbb65b390f2441890e8a8de327e1a60.MainActivity"
             android:exported="true"
@@ -47,7 +51,16 @@
             </intent-filter>
         </activity>
 
-        <!-- ✅ File Provider (for camera & attachments) -->
+        <!-- Firebase Messaging Service -->
+        <service
+            android:name=".services.MyFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- File Provider -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="app.lovable.fcbb65b390f2441890e8a8de327e1a60.fileprovider"
@@ -58,21 +71,7 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
-        <!-- ✅ Firebase Messaging Service (your custom class) -->
-        <service
-            android:name=".services.MyFirebaseMessagingService"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT" />
-            </intent-filter>
-        </service>
-
-        <!-- ✅ AdMob App ID -->
-        <meta-data
-            android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-4211898333188674~9892796996" />
-
-        <!-- ✅ Initialization Providers -->
+        <!-- Initialization Providers -->
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:exported="false"
@@ -88,7 +87,7 @@
                 android:value="androidx.startup" />
         </provider>
 
-        <!-- ✅ Profile Installer Receiver -->
+        <!-- Profile Installer Receiver -->
         <receiver
             android:name="androidx.profileinstaller.ProfileInstallReceiver"
             android:permission="android.permission.DUMP"
