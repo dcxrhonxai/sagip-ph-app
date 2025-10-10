@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, DEFAULT_LAT, DEFAULT_LNG } from '@/integrations/supabase/client';
 import { initAdMob } from '@/integrations/admob';
-import { initPushNotifications } from './services/pushService';
 import EmergencyForm from '@/components/EmergencyForm';
 import LocationMap from '@/components/LocationMap';
 import PersonalContacts from '@/components/PersonalContacts';
@@ -20,6 +19,8 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import type { Session } from '@supabase/supabase-js';
+import { initPushService } from "../services/pushService";
+import { pushService } from './services/pushService';
 
 const Index = () => {
   const navigate = useNavigate();
