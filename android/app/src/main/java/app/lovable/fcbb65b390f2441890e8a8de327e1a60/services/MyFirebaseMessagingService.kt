@@ -16,17 +16,17 @@ import app.lovable.fcbb65b390f2441890e8a8de327e1a60.R
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
-        // Called when FCM message is received.
+        // Handle received FCM message
         remoteMessage.notification?.let {
-            sendNotification(it.title ?: "New Notification", it.body ?: "")
+            sendNotification(it.title ?: "New Alert", it.body ?: "")
         }
     }
 
     override fun onNewToken(token: String) {
-        // Called if FCM token is refreshed
+        // Called when FCM token is refreshed
         super.onNewToken(token)
-        // You can send this token to your backend server if needed
         println("🔥 New FCM Token: $token")
+        // Optionally send token to your backend server
     }
 
     private fun sendNotification(title: String, messageBody: String) {
@@ -41,6 +41,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         val channelId = "default_channel_id"
         val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+
         val notificationBuilder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
@@ -52,11 +53,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val notificationManager =
             getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        // Android 8.0+ requires a notification channel
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "Default Channel",
+                "General Notifications",
                 NotificationManager.IMPORTANCE_DEFAULT
             )
             notificationManager.createNotificationChannel(channel)
