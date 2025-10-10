@@ -2,46 +2,45 @@
 import { AdMob, BannerAdPosition, BannerAdSize } from '@capacitor-community/admob';
 
 /**
- * Initialize AdMob once when the app starts.
- * Safe to call multiple times (no duplicate initialization errors).
+ * Initialize AdMob on app launch.
  */
 export async function initAdMob() {
   try {
     await AdMob.initialize({
-      requestTrackingAuthorization: true, // Ask for user consent on iOS
-      testingDevices: [], // Optional: add test device IDs here
-      initializeForTesting: false, // Set to true while testing ads
+      requestTrackingAuthorization: true, // Ask for consent on iOS
+      testingDevices: [], // Optional: add device IDs while testing
+      initializeForTesting: false,
     });
-    console.log('✅ AdMob initialized successfully');
+    console.log('✅ AdMob initialized');
   } catch (error) {
-    console.error('❌ Failed to initialize AdMob:', error);
+    console.error('❌ AdMob init failed:', error);
   }
 }
 
 /**
- * Optional: Show a banner ad (call when needed)
+ * Show banner ad at bottom of screen.
  */
 export async function showBannerAd() {
   try {
     await AdMob.showBanner({
-      adId: 'ca-app-pub-3940256099942544/6300978111', // ← replace with your own ad unit ID
+      adId: 'ca-app-pub-4211898333188674/6300978111', // Replace with your actual banner ID
       position: BannerAdPosition.BOTTOM_CENTER,
       size: BannerAdSize.BANNER,
     });
-    console.log('📢 Banner ad displayed');
+    console.log('📢 Banner shown');
   } catch (error) {
-    console.error('⚠️ Failed to show banner ad:', error);
+    console.error('⚠️ Show banner failed:', error);
   }
 }
 
 /**
- * Optional: Hide the current banner ad
+ * Hide current banner ad.
  */
 export async function hideBannerAd() {
   try {
     await AdMob.hideBanner();
-    console.log('🚫 Banner ad hidden');
+    console.log('🚫 Banner hidden');
   } catch (error) {
-    console.error('⚠️ Failed to hide banner ad:', error);
+    console.error('⚠️ Hide banner failed:', error);
   }
 }
