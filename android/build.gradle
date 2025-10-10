@@ -1,20 +1,10 @@
 // ------------------------------------------------------------
-// ✅ PROJECT-LEVEL BUILD.GRADLE — VERIFIED FOR CAPACITOR + JAVA 17
+// ✅ PROJECT-LEVEL BUILD.GRADLE — VERIFIED FOR CAPACITOR + GRADLE 8+
 // ------------------------------------------------------------
 
 buildscript {
     ext {
-        // Android SDK versions
-        MIN_SDK = 23
-        TARGET_SDK = 35
-        COMPILE_SDK = 35
-
-        // Dependency versions
         kotlin_version = '1.9.24'
-        gradle_version = '8.7.2'
-
-        // Capacitor / Cordova versions
-        CORDOVA_ANDROID_VERSION = '10.1.1'
     }
 
     repositories {
@@ -23,9 +13,16 @@ buildscript {
     }
 
     dependencies {
-        classpath "com.android.tools.build:gradle:$gradle_version"
+        // ✅ Android + Kotlin build tools
+        classpath 'com.android.tools.build:gradle:8.5.0'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath "com.google.gms:google-services:4.4.2"  // For Firebase
+
+        // ✅ Firebase / Google Services
+        classpath 'com.google.gms:google-services:4.4.2'
+
+        // ✅ Capacitor CLI Gradle Helper (auto-included in Capacitor 5+)
+        // Optional if using Capacitor < 5
+        // classpath 'com.getcapacitor:android:5.0.0'
     }
 }
 
@@ -33,11 +30,33 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // Optional for Capacitor community plugins
-        maven { url "https://jitpack.io" }
+
+        // ✅ Include local libs or plugins if needed
+        flatDir {
+            dirs "${rootProject.projectDir}/app/libs"
+        }
     }
 }
 
-task clean(type: Delete) {
+// ✅ Global Gradle cleanup and optimization
+tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
+
+// ✅ Global compile and Kotlin options
+gradle.projectsEvaluated {
+    allprojects {
+        tasks.withType(JavaCompile).configureEach {
+            sourceCompatibility = JavaVersion.VERSION_17
+            targetCompatibility = JavaVersion.VERSION_17
+        }
+
+        tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+            kotlinOptions {
+                jvmTarget = '17'
+            }
+        }
+    }
+}
+
+println "✅ Gradle setup complete for Capacitor + Java 17 + Kotlin 1.9.24"
