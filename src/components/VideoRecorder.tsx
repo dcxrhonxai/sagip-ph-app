@@ -1,40 +1,27 @@
-import { useState } from "react";
-import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 
 interface VideoRecorderProps {
-  onRecordingComplete: (videoData: string) => void;
+  onVideoComplete: (file: File) => void;
 }
 
-export const VideoRecorder = ({ onRecordingComplete }: VideoRecorderProps) => {
+export const VideoRecorder = ({ onVideoComplete }: VideoRecorderProps) => {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const recordVideo = async () => {
-    try {
-      const video = await Camera.getPhoto({
-        resultType: CameraResultType.Uri,
-        source: CameraSource.Camera,
-        mediaType: "VIDEO",
-      });
-
-      if (video.webPath) {
-        setVideoUrl(video.webPath);
-        onRecordingComplete(video.webPath);
-      }
-    } catch (err) {
-      console.error("Video recording failed:", err);
+  const handleCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setVideoUrl(URL.createObjectURL(file));
+      onVideoComplete(file);
     }
   };
 
   return (
-    <div className="space-y-2">
-      <Button onClick={recordVideo} className="w-full">
-        Record Video
-      </Button>
-
-      {videoUrl && (
-        <video controls src={videoUrl} className="w-full mt-2 rounded-md" />
-      )}
+    <div>
+      <input type="file" accept="video/*" capture="camcorder" ref={inputRef} onChange={handleCapture} className="hidden" />
+      <Button onClick={() => inputRef.current?.click()}>Record Video</Button>
+      {videoUrl && <video src={videoUrl} controls className="w-full mt-2 rounded-lg" />}
     </div>
   );
 };
