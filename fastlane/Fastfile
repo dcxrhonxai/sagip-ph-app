@@ -1,0 +1,33 @@
+# fastlane/Fastfile for sagip-ph-app
+# Builds debug & release APK and AAB, no Play Store upload
+
+default_platform(:android)
+
+platform :android do
+
+  desc "Build both Debug and Release APK & AAB"
+  lane :build_all do
+    UI.message("ℹ️ Starting Debug build...")
+    gradle(
+      task: "assembleDebug",
+      project_dir: "./android"
+    )
+    gradle(
+      task: "bundleDebug",
+      project_dir: "./android"
+    )
+    UI.success("✅ Debug build finished. APK & AAB located in android/app/build/outputs/")
+
+    UI.message("ℹ️ Starting Release build...")
+    gradle(
+      task: "assembleRelease",
+      project_dir: "./android"
+    )
+    gradle(
+      task: "bundleRelease",
+      project_dir: "./android"
+    )
+    UI.success("✅ Release build finished. APK & AAB located in android/app/build/outputs/")
+  end
+
+end
