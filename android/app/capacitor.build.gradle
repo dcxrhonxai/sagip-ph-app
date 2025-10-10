@@ -12,6 +12,7 @@ dependencies {
     implementation project(':capacitor-community-admob')
     implementation project(':capacitor-community-media')
     implementation project(':capacitor-camera')
+    implementation project(':capacitor-push-notifications')
     implementation project(':independo-capacitor-voice-recorder')
 
 }
