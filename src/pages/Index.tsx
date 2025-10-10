@@ -30,9 +30,10 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState('emergency');
 
   // Media states
-  const [lastAudio, setLastAudio] = useState<string | null>(null);
-  const [lastPhoto, setLastPhoto] = useState<string | null>(null);
-  const [lastVideo, setLastVideo] = useState<string | null>(null);
+  const [lastAudio, setLastAudio] = useState<File | null>(null);
+  const [lastPhoto, setLastPhoto] = useState<File | null>(null);
+  const [lastVideo, setLastVideo] = useState<File | null>(null);
+  const [mediaUrls, setMediaUrls] = useState<{ audio?: string; photo?: string; video?: string }>({});
 
   const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
   const { sendNotifications } = useEmergencyNotifications();
@@ -57,12 +58,29 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  // Quick SOS
+  // Upload file to Supabase Storage
+  const uploadFile = async (file: File, folder: string) => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}.${fileExt}`;
+      const { data, error } = await supabase.storage
+        .from('emergency-media')
+        .upload(`${folder}/${fileName}`, file, { cacheControl: '3600', upsert: false });
+      if (error) throw error;
+
+      const { publicUrl } = supabase.storage.from('emergency-media').getPublicUrl(data.path);
+      return publicUrl;
+    } catch (err) {
+      console.error('Upload error:', err);
+      toast.error('Failed to upload media');
+      return null;
+    }
+  };
+
   const handleQuickSOS = async () => {
     handleEmergencyClick('🚨 EMERGENCY - SOS', 'Quick SOS activated - Immediate help needed');
   };
 
-  // Handle Emergency Alert
   const handleEmergencyClick = async (type: string, description: string) => {
     setEmergencyType(type);
     setSituation(description);
@@ -73,8 +91,14 @@ const Index = () => {
 
     if (!session?.user) return;
 
+    // Upload media first
+    const uploadedAudio = lastAudio ? await uploadFile(lastAudio, 'audio') : null;
+    const uploadedPhoto = lastPhoto ? await uploadFile(lastPhoto, 'photo') : null;
+    const uploadedVideo = lastVideo ? await uploadFile(lastVideo, 'video') : null;
+
+    setMediaUrls({ audio: uploadedAudio, photo: uploadedPhoto, video: uploadedVideo });
+
     try {
-      // Send alert with media files to emergency providers
       const { data, error } = await supabase
         .from('emergency_alerts')
         .insert({
@@ -83,23 +107,21 @@ const Index = () => {
           situation: description,
           latitude: location.lat,
           longitude: location.lng,
-          evidence_files: [lastAudio, lastPhoto, lastVideo].filter(Boolean),
+          evidence_files: [uploadedAudio, uploadedPhoto, uploadedVideo].filter(Boolean),
         })
         .select()
         .single();
 
       if (data) setCurrentAlertId(data.id);
-
       if (error) console.error('Error saving alert:', error);
 
-      // Optionally: Send push notifications
+      // Send notifications to providers
       sendNotifications(data?.id, type, description);
     } catch (err) {
       console.error(err);
     }
   };
 
-  // Cancel/resolve alert
   const handleBack = async () => {
     if (currentAlertId) {
       await supabase
@@ -110,6 +132,7 @@ const Index = () => {
     setShowEmergency(false);
     setUserLocation(null);
     setCurrentAlertId(null);
+    setMediaUrls({});
   };
 
   const handleLogout = async () => {
@@ -173,29 +196,29 @@ const Index = () => {
 
               {/* Media Capture */}
               <div className="space-y-4 mt-6">
-                <AudioRecorder onRecordingComplete={setLastAudio} />
-                <CameraCapture onPhotoCapture={setLastPhoto} />
-                <VideoRecorder onVideoComplete={setLastVideo} />
+                <AudioRecorder onRecordingComplete={(blob) => setLastAudio(blob)} />
+                <CameraCapture onPhotoCapture={(file) => setLastPhoto(file)} />
+                <VideoRecorder onVideoComplete={(file) => setLastVideo(file)} />
               </div>
 
               {/* Media Preview */}
               <div className="mt-6 space-y-4">
-                {lastAudio && (
+                {mediaUrls.audio && (
                   <div className="p-4 bg-secondary/10 rounded-lg">
                     <p className="font-semibold">Last Recorded Audio:</p>
-                    <audio src={lastAudio} controls className="w-full mt-2" />
+                    <audio src={mediaUrls.audio} controls className="w-full mt-2" />
                   </div>
                 )}
-                {lastPhoto && (
+                {mediaUrls.photo && (
                   <div className="p-4 bg-secondary/10 rounded-lg">
                     <p className="font-semibold">Last Captured Photo:</p>
-                    <img src={lastPhoto} alt="Captured" className="w-full mt-2 rounded-lg" />
+                    <img src={mediaUrls.photo} alt="Captured" className="w-full mt-2 rounded-lg" />
                   </div>
                 )}
-                {lastVideo && (
+                {mediaUrls.video && (
                   <div className="p-4 bg-secondary/10 rounded-lg">
                     <p className="font-semibold">Last Recorded Video:</p>
-                    <video src={lastVideo} controls className="w-full mt-2 rounded-lg" />
+                    <video src={mediaUrls.video} controls className="w-full mt-2 rounded-lg" />
                   </div>
                 )}
               </div>
