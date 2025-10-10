@@ -18,8 +18,11 @@ dependencyResolutionManagement {
     }
 }
 
-// ✅ Define root project name
-rootProject.name = "sagip-ph-app"
+// ✅ settings.gradle
+rootProject.name = "Emergency Response PH"
+include ':app'
+apply from: "../node_modules/@capacitor/cli/assets/capacitor-settings.gradle"
+
 
 // ✅ Include main app module
 include ':app'
