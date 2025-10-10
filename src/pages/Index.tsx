@@ -37,9 +37,7 @@ const Index = () => {
   const { sendNotifications } = useEmergencyNotifications();
 
   // Initialize AdMob
-  useEffect(() => {
-    initAdMob();
-  }, []);
+  useEffect(() => { initAdMob(); }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -85,9 +83,7 @@ const Index = () => {
 
       if (data) setCurrentAlertId(data.id);
       if (error) console.error('Error saving alert:', error);
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   const handleBack = async () => {
@@ -149,7 +145,7 @@ const Index = () => {
               <div className="mb-6">
                 <Button
                   onClick={handleQuickSOS}
-                  className="w-full h-32 text-3xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse"
+                  className="w-full h-28 text-2xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse"
                   size="lg"
                 >
                   🚨 SOS
@@ -162,30 +158,30 @@ const Index = () => {
               <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
 
               {/* Media Capture Components */}
-              <div className="space-y-4 mt-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 <AudioRecorder onRecordingComplete={setLastAudio} />
                 <CameraCapture onPhotoCapture={setLastPhoto} />
                 <VideoRecorder onVideoComplete={setLastVideo} />
               </div>
 
-              {/* Media Preview Section */}
-              <div className="mt-6 space-y-4">
+              {/* Compact Media Preview Section */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
                 {lastAudio && (
-                  <div className="p-4 bg-secondary/10 rounded-lg">
-                    <p className="font-semibold">Last Recorded Audio:</p>
+                  <div className="p-3 bg-secondary/10 rounded-lg flex flex-col items-center">
+                    <p className="font-semibold text-sm">Audio</p>
                     <audio src={lastAudio} controls className="w-full mt-2" />
                   </div>
                 )}
                 {lastPhoto && (
-                  <div className="p-4 bg-secondary/10 rounded-lg">
-                    <p className="font-semibold">Last Captured Photo:</p>
-                    <img src={lastPhoto} alt="Captured" className="w-full mt-2 rounded-lg" />
+                  <div className="p-3 bg-secondary/10 rounded-lg flex flex-col items-center">
+                    <p className="font-semibold text-sm">Photo</p>
+                    <img src={lastPhoto} alt="Captured" className="w-full mt-2 rounded-lg object-cover" />
                   </div>
                 )}
                 {lastVideo && (
-                  <div className="p-4 bg-secondary/10 rounded-lg">
-                    <p className="font-semibold">Last Recorded Video:</p>
-                    <video src={lastVideo} controls className="w-full mt-2 rounded-lg" />
+                  <div className="p-3 bg-secondary/10 rounded-lg flex flex-col items-center">
+                    <p className="font-semibold text-sm">Video</p>
+                    <video src={lastVideo} controls className="w-full mt-2 rounded-lg object-cover" />
                   </div>
                 )}
               </div>
