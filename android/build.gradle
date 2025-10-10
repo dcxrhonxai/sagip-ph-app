@@ -1,13 +1,17 @@
-// android/build.gradle
+// ------------------------------------------------------------
+// ✅ ROOT-LEVEL BUILD.GRADLE — VERIFIED FOR GRADLE 8+
+// ------------------------------------------------------------
 
 buildscript {
     ext {
         kotlin_version = '1.9.24'
     }
+
     repositories {
         google()
         mavenCentral()
     }
+
     dependencies {
         classpath 'com.android.tools.build:gradle:8.5.0'
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
@@ -28,4 +32,12 @@ allprojects {
 
 task clean(type: Delete) {
     delete rootProject.buildDir
+}
+
+// ✅ Ensure Gradle uses Java 17
+gradle.projectsEvaluated {
+    tasks.withType(JavaCompile).configureEach {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
 }
