@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+// src/pages/Index.tsx
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, DEFAULT_LAT, DEFAULT_LNG } from '@/integrations/supabase/client';
 import { initAdMob } from '@/integrations/admob';
@@ -11,54 +12,91 @@ import { EmergencyProfile } from '@/components/EmergencyProfile';
 import { AudioRecorder } from '@/components/AudioRecorder';
 import { CameraCapture } from '@/components/CameraCapture';
 import { VideoRecorder } from '@/components/VideoRecorder';
+import { useEmergencyNotifications } from '@/hooks/useEmergencyNotifications';
 import { Shield, LogOut, History, Users, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { useRealtimeAlerts } from '@/hooks/useRealtimeAlerts';
-import { useEmergencyNotifications } from '@/hooks/useEmergencyNotifications';
 import type { Session } from '@supabase/supabase-js';
 
 const Index = () => {
   const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
-  const [activeTab, setActiveTab] = useState('emergency');
   const [showEmergency, setShowEmergency] = useState(false);
-  const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [emergencyType, setEmergencyType] = useState('');
   const [situation, setSituation] = useState('');
+  const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('emergency');
 
-  // Media files
-  const [lastAudio, setLastAudio] = useState<File | null>(null);
-  const [lastPhoto, setLastPhoto] = useState<File | null>(null);
-  const [lastVideo, setLastVideo] = useState<File | null>(null);
+  const [lastAudio, setLastAudio] = useState<string | null>(null);
+  const [lastPhoto, setLastPhoto] = useState<string | null>(null);
+  const [lastVideo, setLastVideo] = useState<string | null>(null);
 
   const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
   const { sendNotifications } = useEmergencyNotifications();
 
-  // -------------------- Effects --------------------
-  useEffect(() => initAdMob(), []);
+  // Initialize AdMob
+  useEffect(() => { initAdMob(); }, []);
 
+  // Auth session handling
   useEffect(() => {
-    const fetchSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+    supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (!session) navigate('/auth');
-    };
-    fetchSession();
+    });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (!session) navigate('/auth');
     });
+
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  // -------------------- Helpers --------------------
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    toast.success('Logged out successfully');
+  const handleQuickSOS = async () => {
+    handleEmergencyClick('🚨 EMERGENCY - SOS', 'Quick SOS activated - Immediate help needed');
+  };
+
+  // Handle emergency alerts
+  const handleEmergencyClick = async (type: string, description: string) => {
+    setEmergencyType(type);
+    setSituation(description);
+    setShowEmergency(true);
+
+    const location = userLocation ?? { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
+    setUserLocation(location);
+
+    if (!session?.user) return;
+
+    try {
+      // Insert alert in Supabase
+      const { data, error } = await supabase
+        .from('emergency_alerts')
+        .insert({
+          user_id: session.user.id,
+          emergency_type: type,
+          situation: description,
+          latitude: location.lat,
+          longitude: location.lng,
+          evidence_files: [lastAudio, lastPhoto, lastVideo].filter(Boolean),
+        })
+        .select()
+        .single();
+
+      if (data) {
+        setCurrentAlertId(data.id);
+
+        // Automatically send notifications to all emergency providers
+        await sendNotifications(data.id, [lastAudio, lastPhoto, lastVideo].filter(Boolean) as string[]);
+        toast.success('Emergency alert sent to providers');
+      }
+
+      if (error) console.error('Error saving alert:', error);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to send emergency alert');
+    }
   };
 
   const handleBack = async () => {
@@ -68,93 +106,16 @@ const Index = () => {
         .update({ status: 'resolved', resolved_at: new Date().toISOString() })
         .eq('id', currentAlertId);
     }
-    resetEmergencyState();
-  };
-
-  const resetEmergencyState = () => {
     setShowEmergency(false);
     setUserLocation(null);
     setCurrentAlertId(null);
-    setLastAudio(null);
-    setLastPhoto(null);
-    setLastVideo(null);
   };
 
-  const handleQuickSOS = () => {
-    handleEmergencyClick('🚨 EMERGENCY - SOS', 'Quick SOS activated - Immediate help needed');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast.success('Logged out successfully');
   };
 
-  // Upload media to Supabase Storage
-  const uploadFile = async (file: File, folder: string) => {
-    const path = `${folder}/${Date.now()}_${file.name}`;
-    const { error } = await supabase.storage.from('emergency-media').upload(path, file);
-    if (error) {
-      console.error('Upload failed:', error);
-      return null;
-    }
-    const { data } = supabase.storage.from('emergency-media').getPublicUrl(path);
-    return data.publicUrl;
-  };
-
-  // Send emergency alert
-  const handleEmergencyClick = useCallback(
-    async (type: string, description: string) => {
-      if (!session?.user) return;
-
-      setEmergencyType(type);
-      setSituation(description);
-      setShowEmergency(true);
-
-      const location = userLocation ?? { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
-      setUserLocation(location);
-
-      try {
-        // Upload media
-        const mediaUrls: string[] = [];
-        if (lastAudio) {
-          const audioUrl = await uploadFile(lastAudio, 'audio');
-          if (audioUrl) mediaUrls.push(audioUrl);
-        }
-        if (lastPhoto) {
-          const photoUrl = await uploadFile(lastPhoto, 'photos');
-          if (photoUrl) mediaUrls.push(photoUrl);
-        }
-        if (lastVideo) {
-          const videoUrl = await uploadFile(lastVideo, 'videos');
-          if (videoUrl) mediaUrls.push(videoUrl);
-        }
-
-        // Save alert to database
-        const { data, error } = await supabase
-          .from('emergency_alerts')
-          .insert({
-            user_id: session.user.id,
-            emergency_type: type,
-            situation: description,
-            latitude: location.lat,
-            longitude: location.lng,
-            evidence_files: mediaUrls,
-          })
-          .select()
-          .single();
-
-        if (error) console.error('Error saving alert:', error);
-        if (data) {
-          setCurrentAlertId(data.id);
-          // Notify providers
-          sendNotifications(data.id, mediaUrls);
-          toast.success('Emergency alert sent!');
-          resetEmergencyState();
-        }
-      } catch (err) {
-        console.error(err);
-        toast.error('Failed to send emergency alert');
-      }
-    },
-    [session, lastAudio, lastPhoto, lastVideo, sendNotifications, userLocation]
-  );
-
-  // -------------------- Render --------------------
   if (!session) return null;
 
   return (
@@ -178,62 +139,34 @@ const Index = () => {
         {!showEmergency ? (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="emergency" className="flex items-center gap-2">
-                <Shield className="w-4 h-4" /> Emergency
-              </TabsTrigger>
-              <TabsTrigger value="contacts" className="flex items-center gap-2">
-                <Users className="w-4 h-4" /> Contacts
-              </TabsTrigger>
-              <TabsTrigger value="profile" className="flex items-center gap-2">
-                <Heart className="w-4 h-4" /> Profile
-              </TabsTrigger>
-              <TabsTrigger value="history" className="flex items-center gap-2">
-                <History className="w-4 h-4" /> History
-              </TabsTrigger>
+              <TabsTrigger value="emergency" className="flex items-center gap-2"><Shield className="w-4 h-4" /> Emergency</TabsTrigger>
+              <TabsTrigger value="contacts" className="flex items-center gap-2"><Users className="w-4 h-4" /> Contacts</TabsTrigger>
+              <TabsTrigger value="profile" className="flex items-center gap-2"><Heart className="w-4 h-4" /> Profile</TabsTrigger>
+              <TabsTrigger value="history" className="flex items-center gap-2"><History className="w-4 h-4" /> History</TabsTrigger>
             </TabsList>
 
             <TabsContent value="emergency">
               {!alertsLoading && alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
               <div className="mb-6">
-                <Button
-                  onClick={handleQuickSOS}
-                  className="w-full h-32 text-3xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse"
-                  size="lg"
-                >
+                <Button onClick={handleQuickSOS} className="w-full h-32 text-3xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse" size="lg">
                   🚨 SOS
                 </Button>
-                <p className="text-center text-sm text-muted-foreground mt-2">
-                  Tap for instant emergency alert
-                </p>
+                <p className="text-center text-sm text-muted-foreground mt-2">Tap for instant emergency alert</p>
               </div>
-
               <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
 
+              {/* Media Capture */}
               <div className="space-y-4 mt-6">
                 <AudioRecorder onRecordingComplete={setLastAudio} />
                 <CameraCapture onPhotoCapture={setLastPhoto} />
                 <VideoRecorder onVideoComplete={setLastVideo} />
               </div>
 
+              {/* Media Preview */}
               <div className="mt-6 space-y-4">
-                {lastAudio && (
-                  <div className="p-4 bg-secondary/10 rounded-lg">
-                    <p className="font-semibold">Last Recorded Audio:</p>
-                    <audio src={URL.createObjectURL(lastAudio)} controls className="w-full mt-2" />
-                  </div>
-                )}
-                {lastPhoto && (
-                  <div className="p-4 bg-secondary/10 rounded-lg">
-                    <p className="font-semibold">Last Captured Photo:</p>
-                    <img src={URL.createObjectURL(lastPhoto)} alt="Captured" className="w-full mt-2 rounded-lg" />
-                  </div>
-                )}
-                {lastVideo && (
-                  <div className="p-4 bg-secondary/10 rounded-lg">
-                    <p className="font-semibold">Last Recorded Video:</p>
-                    <video src={URL.createObjectURL(lastVideo)} controls className="w-full mt-2 rounded-lg" />
-                  </div>
-                )}
+                {lastAudio && <div className="p-4 bg-secondary/10 rounded-lg"><p className="font-semibold">Last Recorded Audio:</p><audio src={lastAudio} controls className="w-full mt-2" /></div>}
+                {lastPhoto && <div className="p-4 bg-secondary/10 rounded-lg"><p className="font-semibold">Last Captured Photo:</p><img src={lastPhoto} alt="Captured" className="w-full mt-2 rounded-lg" /></div>}
+                {lastVideo && <div className="p-4 bg-secondary/10 rounded-lg"><p className="font-semibold">Last Recorded Video:</p><video src={lastVideo} controls className="w-full mt-2 rounded-lg" /></div>}
               </div>
             </TabsContent>
 
@@ -247,13 +180,9 @@ const Index = () => {
               <h2 className="text-xl font-bold mb-2">Emergency Alert Active</h2>
               <p className="mb-2"><strong>Type:</strong> {emergencyType}</p>
               <p className="mb-4"><strong>Situation:</strong> {situation}</p>
-              <button
-                onClick={handleBack}
-                className="bg-primary-foreground text-primary px-4 py-2 rounded-md font-semibold hover:opacity-90 transition-opacity"
-              >
-                Cancel Alert
-              </button>
+              <button onClick={handleBack} className="bg-primary-foreground text-primary px-4 py-2 rounded-md font-semibold hover:opacity-90 transition-opacity">Cancel Alert</button>
             </div>
+
             {userLocation && <LocationMap location={userLocation} />}
           </div>
         )}
