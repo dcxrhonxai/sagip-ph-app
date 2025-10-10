@@ -1,17 +1,32 @@
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 
 buildscript {
-    
+    ext {
+        buildToolsVersion = "35.0.0"
+        minSdkVersion = 23
+        compileSdkVersion = 35
+        targetSdkVersion = 35
+
+        androidxAppCompatVersion = "1.7.0"
+        androidxCoordinatorLayoutVersion = "1.2.0"
+        coreSplashScreenVersion = "1.1.0"
+        junitVersion = "4.13.2"
+        androidxJunitVersion = "1.1.5"
+        androidxEspressoCoreVersion = "3.5.1"
+    }
+
     repositories {
         google()
         mavenCentral()
+        flatDir {
+            dirs 'libs', '../capacitor-cordova-android-plugins/src/main/libs'
+        }
     }
+
     dependencies {
         classpath 'com.android.tools.build:gradle:8.7.2'
         classpath 'com.google.gms:google-services:4.4.2'
-
-        // NOTE: Do not place your application dependencies here; they belong
-        // in the individual module build.gradle files
+        // NOTE: Do not place your application dependencies here; they belong in the individual module build.gradle files
     }
 }
 
@@ -21,6 +36,9 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        flatDir {
+            dirs 'libs', '../capacitor-cordova-android-plugins/src/main/libs'
+        }
     }
 }
 
