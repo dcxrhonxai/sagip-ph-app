@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, DEFAULT_LAT, DEFAULT_LNG } from '@/integrations/supabase/client';
 import { initAdMob } from '@/integrations/admob';
@@ -22,12 +22,12 @@ import type { Session } from '@supabase/supabase-js';
 const Index = () => {
   const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
+  const [activeTab, setActiveTab] = useState('emergency');
   const [showEmergency, setShowEmergency] = useState(false);
+  const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [emergencyType, setEmergencyType] = useState('');
   const [situation, setSituation] = useState('');
-  const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('emergency');
 
   // Media files
   const [lastAudio, setLastAudio] = useState<File | null>(null);
@@ -37,28 +37,54 @@ const Index = () => {
   const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
   const { sendNotifications } = useEmergencyNotifications();
 
-  // Initialize AdMob
+  // -------------------- Effects --------------------
   useEffect(() => initAdMob(), []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const fetchSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       if (!session) navigate('/auth');
-    });
+    };
+    fetchSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (!session) navigate('/auth');
     });
-
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const handleQuickSOS = async () => {
+  // -------------------- Helpers --------------------
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast.success('Logged out successfully');
+  };
+
+  const handleBack = async () => {
+    if (currentAlertId) {
+      await supabase
+        .from('emergency_alerts')
+        .update({ status: 'resolved', resolved_at: new Date().toISOString() })
+        .eq('id', currentAlertId);
+    }
+    resetEmergencyState();
+  };
+
+  const resetEmergencyState = () => {
+    setShowEmergency(false);
+    setUserLocation(null);
+    setCurrentAlertId(null);
+    setLastAudio(null);
+    setLastPhoto(null);
+    setLastVideo(null);
+  };
+
+  const handleQuickSOS = () => {
     handleEmergencyClick('🚨 EMERGENCY - SOS', 'Quick SOS activated - Immediate help needed');
   };
 
-  // Upload media files to Supabase Storage
+  // Upload media to Supabase Storage
   const uploadFile = async (file: File, folder: string) => {
     const path = `${folder}/${Date.now()}_${file.name}`;
     const { error } = await supabase.storage.from('emergency-media').upload(path, file);
@@ -70,79 +96,65 @@ const Index = () => {
     return data.publicUrl;
   };
 
-  const handleEmergencyClick = async (type: string, description: string) => {
-    setEmergencyType(type);
-    setSituation(description);
-    setShowEmergency(true);
+  // Send emergency alert
+  const handleEmergencyClick = useCallback(
+    async (type: string, description: string) => {
+      if (!session?.user) return;
 
-    const location = userLocation ?? { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
-    setUserLocation(location);
-    if (!session?.user) return;
+      setEmergencyType(type);
+      setSituation(description);
+      setShowEmergency(true);
 
-    try {
-      // Upload media files if any
-      const evidenceFiles: string[] = [];
-      if (lastAudio) {
-        const audioUrl = await uploadFile(lastAudio, 'audio');
-        if (audioUrl) evidenceFiles.push(audioUrl);
+      const location = userLocation ?? { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
+      setUserLocation(location);
+
+      try {
+        // Upload media
+        const mediaUrls: string[] = [];
+        if (lastAudio) {
+          const audioUrl = await uploadFile(lastAudio, 'audio');
+          if (audioUrl) mediaUrls.push(audioUrl);
+        }
+        if (lastPhoto) {
+          const photoUrl = await uploadFile(lastPhoto, 'photos');
+          if (photoUrl) mediaUrls.push(photoUrl);
+        }
+        if (lastVideo) {
+          const videoUrl = await uploadFile(lastVideo, 'videos');
+          if (videoUrl) mediaUrls.push(videoUrl);
+        }
+
+        // Save alert to database
+        const { data, error } = await supabase
+          .from('emergency_alerts')
+          .insert({
+            user_id: session.user.id,
+            emergency_type: type,
+            situation: description,
+            latitude: location.lat,
+            longitude: location.lng,
+            evidence_files: mediaUrls,
+          })
+          .select()
+          .single();
+
+        if (error) console.error('Error saving alert:', error);
+        if (data) {
+          setCurrentAlertId(data.id);
+          // Notify providers
+          sendNotifications(data.id, mediaUrls);
+          toast.success('Emergency alert sent!');
+          resetEmergencyState();
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error('Failed to send emergency alert');
       }
-      if (lastPhoto) {
-        const photoUrl = await uploadFile(lastPhoto, 'photos');
-        if (photoUrl) evidenceFiles.push(photoUrl);
-      }
-      if (lastVideo) {
-        const videoUrl = await uploadFile(lastVideo, 'videos');
-        if (videoUrl) evidenceFiles.push(videoUrl);
-      }
+    },
+    [session, lastAudio, lastPhoto, lastVideo, sendNotifications, userLocation]
+  );
 
-      const { data, error } = await supabase
-        .from('emergency_alerts')
-        .insert({
-          user_id: session.user.id,
-          emergency_type: type,
-          situation: description,
-          latitude: location.lat,
-          longitude: location.lng,
-          evidence_files: evidenceFiles,
-        })
-        .select()
-        .single();
-
-      if (data) setCurrentAlertId(data.id);
-      if (error) console.error('Error saving alert:', error);
-
-      // Notify emergency providers
-      sendNotifications(data?.id, evidenceFiles);
-
-      // Reset media
-      setLastAudio(null);
-      setLastPhoto(null);
-      setLastVideo(null);
-
-      toast.success('Emergency alert sent to providers!');
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to send emergency alert');
-    }
-  };
-
-  const handleBack = async () => {
-    if (currentAlertId) {
-      await supabase
-        .from('emergency_alerts')
-        .update({ status: 'resolved', resolved_at: new Date().toISOString() })
-        .eq('id', currentAlertId);
-    }
-    setShowEmergency(false);
-    setUserLocation(null);
-    setCurrentAlertId(null);
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    toast.success('Logged out successfully');
-  };
-
+  // -------------------- Render --------------------
   if (!session) return null;
 
   return (
@@ -197,14 +209,12 @@ const Index = () => {
 
               <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
 
-              {/* Media Capture Components */}
               <div className="space-y-4 mt-6">
                 <AudioRecorder onRecordingComplete={setLastAudio} />
                 <CameraCapture onPhotoCapture={setLastPhoto} />
                 <VideoRecorder onVideoComplete={setLastVideo} />
               </div>
 
-              {/* Media Preview */}
               <div className="mt-6 space-y-4">
                 {lastAudio && (
                   <div className="p-4 bg-secondary/10 rounded-lg">
@@ -227,17 +237,9 @@ const Index = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="contacts">
-              <PersonalContacts userId={session.user.id} />
-            </TabsContent>
-
-            <TabsContent value="profile">
-              <EmergencyProfile userId={session.user.id} />
-            </TabsContent>
-
-            <TabsContent value="history">
-              <AlertHistory userId={session.user.id} />
-            </TabsContent>
+            <TabsContent value="contacts"><PersonalContacts userId={session.user.id} /></TabsContent>
+            <TabsContent value="profile"><EmergencyProfile userId={session.user.id} /></TabsContent>
+            <TabsContent value="history"><AlertHistory userId={session.user.id} /></TabsContent>
           </Tabs>
         ) : (
           <div className="space-y-6">
