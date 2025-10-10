@@ -1,5 +1,5 @@
 // ------------------------------------------------------------
-// ✅ APP-LEVEL BUILD.GRADLE — CLEAN + VERIFIED
+// ✅ APP-LEVEL BUILD.GRADLE — VERIFIED FOR CAPACITOR + JAVA 17
 // ------------------------------------------------------------
 
 plugins {
@@ -10,14 +10,15 @@ plugins {
 
 android {
     namespace "app.lovable.fcbb65b390f2441890e8a8de327e1a60"
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         applicationId "app.lovable.fcbb65b390f2441890e8a8de327e1a60"
         minSdk 23
-        targetSdk 34
+        targetSdk 35
         versionCode 1
         versionName "1.0"
+
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         aaptOptions {
@@ -37,6 +38,7 @@ android {
     }
 
     compileOptions {
+        // ✅ Use Java 17 (required for AGP 8+)
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
@@ -44,18 +46,24 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+
+    packagingOptions {
+        resources {
+            excludes += ['META-INF/LICENSE*', 'META-INF/NOTICE*']
+        }
+    }
 }
 
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
 
-    // ✅ Kotlin + AndroidX Core
+    // ✅ Kotlin and AndroidX
     implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.24"
     implementation "androidx.appcompat:appcompat:1.7.0"
     implementation "androidx.coordinatorlayout:coordinatorlayout:1.2.0"
     implementation "androidx.core:core-splashscreen:1.0.1"
 
-    // ✅ Capacitor Core
+    // ✅ Capacitor Core and Cordova Bridge
     implementation project(':capacitor-android')
     implementation project(':capacitor-cordova-android-plugins')
 
@@ -63,7 +71,7 @@ dependencies {
     implementation 'com.google.firebase:firebase-messaging:24.0.0'
     implementation 'com.google.android.gms:play-services-ads:23.3.0'
 
-    // ✅ Testing
+    // ✅ Testing libraries
     testImplementation "junit:junit:4.13.2"
     androidTestImplementation "androidx.test.ext:junit:1.2.1"
     androidTestImplementation "androidx.test.espresso:espresso-core:3.6.1"
@@ -72,13 +80,13 @@ dependencies {
 // ✅ Include Capacitor build settings
 apply from: 'capacitor.build.gradle'
 
-// ✅ Auto-detect google-services.json
+// ✅ Firebase JSON Auto-Check
 try {
     def servicesJSON = file('google-services.json')
     if (servicesJSON.exists()) {
         logger.lifecycle("✅ google-services.json found. Firebase initialized.")
     } else {
-        logger.lifecycle("⚠️ google-services.json not found. Push notifications disabled.")
+        logger.lifecycle("⚠️ google-services.json not found. Firebase features disabled.")
     }
 } catch (Exception e) {
     logger.lifecycle("⚠️ Error checking google-services.json: ${e.message}")
