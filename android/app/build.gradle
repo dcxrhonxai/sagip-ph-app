@@ -1,6 +1,5 @@
 apply plugin: 'com.android.application'
 
-// Android app configuration
 android {
     namespace "app.lovable.fcbb65b390f2441890e8a8de327e1a60"
     compileSdk rootProject.ext.compileSdkVersion
@@ -14,7 +13,6 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         aaptOptions {
-            // Omit unnecessary files from packaged assets
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
@@ -27,42 +25,28 @@ android {
     }
 }
 
-// Repositories for dependencies and local libraries
 repositories {
-    google()
-    mavenCentral()
     flatDir {
         dirs rootProject.ext.flatDirLibs
     }
 }
 
-// Dependencies
 dependencies {
-    // Local libs
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-
-    // AndroidX
     implementation "androidx.appcompat:appcompat:${rootProject.ext.androidxAppCompatVersion}"
     implementation "androidx.coordinatorlayout:coordinatorlayout:${rootProject.ext.androidxCoordinatorLayoutVersion}"
     implementation "androidx.core:core-splashscreen:${rootProject.ext.coreSplashScreenVersion}"
-
-    // Capacitor & Cordova
     implementation project(':capacitor-android')
     implementation project(':capacitor-cordova-android-plugins')
-
-    // Google Play Ads
     implementation 'com.google.android.gms:play-services-ads:23.3.0'
 
-    // Testing
     testImplementation "junit:junit:${rootProject.ext.junitVersion}"
     androidTestImplementation "androidx.test.ext:junit:${rootProject.ext.androidxJunitVersion}"
     androidTestImplementation "androidx.test.espresso:espresso-core:${rootProject.ext.androidxEspressoCoreVersion}"
 }
 
-// Include Capacitor shared build config
 apply from: 'capacitor.build.gradle'
 
-// Optional Google Services integration
 try {
     def servicesJSON = file('google-services.json')
     if (servicesJSON.text) {
