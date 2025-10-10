@@ -1,6 +1,6 @@
 import { PushNotifications } from '@capacitor/push-notifications';
 
-export async function initPushService() {
+export function initPushService() {
   console.log('Initializing push notifications...');
   
   let permStatus = await PushNotifications.checkPermissions();
