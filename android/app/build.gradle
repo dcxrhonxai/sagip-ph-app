@@ -1,4 +1,5 @@
 apply plugin: 'com.android.application'
+apply plugin: 'com.google.gms.google-services'
 
 android {
     namespace "app.lovable.fcbb65b390f2441890e8a8de327e1a60"
