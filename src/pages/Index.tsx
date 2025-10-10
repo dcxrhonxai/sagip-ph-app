@@ -20,5 +20,47 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import type { Session } from '@supabase/supabase-js';
 
-// ✅ Correct import for your push notifications
-import { initPushService } from '@/services/pushService';
+// ✅ Your actual Index page component
+export default function Index() {
+  const navigate = useNavigate();
+  const [session, setSession] = useState<Session | null>(null);
+  const [activeTab, setActiveTab] = useState('alerts');
+
+  // Initialize AdMob on mount
+  useEffect(() => {
+    initAdMob();
+  }, []);
+
+  return (
+    <div className="p-4 space-y-4">
+      <header className="flex justify-between items-center">
+        <h1 className="text-xl font-bold flex items-center gap-2">
+          <Shield className="text-red-500" /> Sagip PH
+        </h1>
+        <Button variant="outline" onClick={() => supabase.auth.signOut()}>
+          <LogOut className="mr-2 w-4 h-4" /> Logout
+        </Button>
+      </header>
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid grid-cols-3 gap-2">
+          <TabsTrigger value="alerts">Active</TabsTrigger>
+          <TabsTrigger value="contacts">Contacts</TabsTrigger>
+          <TabsTrigger value="history">History</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="alerts">
+          <ActiveAlerts />
+        </TabsContent>
+
+        <TabsContent value="contacts">
+          <PersonalContacts />
+        </TabsContent>
+
+        <TabsContent value="history">
+          <AlertHistory />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
