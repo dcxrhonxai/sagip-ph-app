@@ -1,68 +1,64 @@
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
+// src/hooks/useEmergencyNotifications.ts
+import { supabase } from '@/integrations/supabase/client';
+import axios from 'axios';
 
-interface NotificationContact {
-  name: string;
-  email?: string;
-  phone: string;
+interface NotificationOptions {
+  alertId: string;
+  mediaUrls?: string[];
 }
 
 export const useEmergencyNotifications = () => {
-  const sendNotifications = async (
-    alertId: string,
-    contacts: NotificationContact[],
-    emergencyType: string,
-    situation: string,
-    location: { lat: number; lng: number },
-    evidenceFiles?: Array<{ url: string; type: string }>
-  ) => {
-    try {
-      const emailContacts = contacts.filter(c => c.email);
-      
-      if (emailContacts.length === 0) {
-        toast.info("No email contacts to notify");
-        return;
-      }
+  // Example: fetch emergency providers from your database
+  const fetchProviders = async () => {
+    const { data, error } = await supabase.from('emergency_providers').select('*');
+    if (error) console.error('Failed to fetch providers:', error);
+    return data || [];
+  };
 
-      const { data, error } = await supabase.functions.invoke(
-        "send-emergency-email",
-        {
-          body: {
-            alertId,
-            contacts: emailContacts,
-            emergencyType,
-            situation,
-            location: {
-              latitude: location.lat,
-              longitude: location.lng,
-            },
-            evidenceFiles,
-          },
+  // Send notifications to providers
+  const sendNotifications = async (alertId: string, mediaUrls: string[] = []) => {
+    const providers = await fetchProviders();
+
+    const notifications: Promise<any>[] = providers.map(async (provider) => {
+      const { phone, email, webhook_url } = provider;
+
+      // 1️⃣ SMS Notification (via Twilio or similar service)
+      if (phone) {
+        try {
+          await axios.post('https://your-sms-api.com/send', {
+            to: phone,
+            message: `🚨 Emergency Alert! ID: ${alertId}. Check details in your dashboard.`,
+          });
+        } catch (err) {
+          console.error('SMS notification failed:', err);
         }
-      );
-
-      if (error) {
-        console.error("Error sending notifications:", error);
-        toast.error("Failed to send email notifications");
-        return;
       }
 
-      if (data?.emailSent > 0 || data?.smsSent > 0) {
-        const messages = [];
-        if (data.emailSent > 0) messages.push(`${data.emailSent} email(s)`);
-        if (data.smsSent > 0) messages.push(`${data.smsSent} SMS`);
-        toast.success(`Sent to ${messages.join(" and ")}`);
+      // 2️⃣ Email Notification (via SendGrid, SES, etc.)
+      if (email) {
+        try {
+          await axios.post('https://your-email-api.com/send', {
+            to: email,
+            subject: '🚨 Emergency Alert Received',
+            body: `Alert ID: ${alertId}\nMedia: ${mediaUrls.join(', ')}`,
+          });
+        } catch (err) {
+          console.error('Email notification failed:', err);
+        }
       }
-      if (data?.emailFailed > 0 || data?.smsFailed > 0) {
-        const messages = [];
-        if (data.emailFailed > 0) messages.push(`${data.emailFailed} email(s)`);
-        if (data.smsFailed > 0) messages.push(`${data.smsFailed} SMS`);
-        toast.warning(`Failed to send ${messages.join(" and ")}`);
+
+      // 3️⃣ Webhook Push
+      if (webhook_url) {
+        try {
+          await axios.post(webhook_url, { alertId, mediaUrls });
+        } catch (err) {
+          console.error('Webhook push failed:', err);
+        }
       }
-    } catch (error) {
-      console.error("Error in sendNotifications:", error);
-      toast.error("Failed to send notifications");
-    }
+    });
+
+    // Wait for all notifications to finish
+    await Promise.allSettled(notifications);
   };
 
   return { sendNotifications };
