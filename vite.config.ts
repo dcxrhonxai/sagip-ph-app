@@ -2,7 +2,6 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -11,17 +10,13 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: "dist", // Capacitor expects web assets here
     rollupOptions: {
+      // Prevent Vite from trying to bundle native-only Capacitor packages
+      external: ["@capacitor/android", "@capacitor/ios"],
       output: {
         manualChunks: {
           react: ["react", "react-dom", "react-router-dom"],
-          capacitor: [
-            "@capacitor/core",
-            "@capacitor/android",
-            "@capacitor/ios",
-            "@capacitor-community/admob",
-          ],
+          capacitor: ["@capacitor/core", "@capacitor-community/admob"], // web-safe only
           supabase: ["@supabase/supabase-js"],
           query: ["@tanstack/react-query"],
         },
