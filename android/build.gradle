@@ -1,5 +1,5 @@
 // ------------------------------------------------------------
-// ✅ ROOT-LEVEL BUILD.GRADLE — VERIFIED FOR GRADLE 8+
+// ✅ ROOT-LEVEL BUILD.GRADLE — VERIFIED FOR GRADLE 8+ / CAPACITOR
 // ------------------------------------------------------------
 
 buildscript {
@@ -23,7 +23,7 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // Optional: add Capacitor community plugins or local libs here
+        // Optional: for community or local plugins
         flatDir {
             dirs "${rootProject.projectDir}/app/libs"
         }
@@ -34,7 +34,7 @@ task clean(type: Delete) {
     delete rootProject.buildDir
 }
 
-// ✅ Ensure Gradle uses Java 17
+// ✅ Ensure Java 17 is used everywhere
 gradle.projectsEvaluated {
     tasks.withType(JavaCompile).configureEach {
         sourceCompatibility = JavaVersion.VERSION_17
