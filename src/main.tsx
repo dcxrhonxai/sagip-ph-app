@@ -2,6 +2,10 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { Plugins } from "@capacitor/core";
+import { initPushNotifications } from './services/pushService';
+
+initPushNotifications();
+
 
 const { PushPlugin } = Plugins;
 
