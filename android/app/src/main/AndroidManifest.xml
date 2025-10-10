@@ -2,9 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="app.lovable.fcbb65b390f2441890e8a8de327e1a60">
 
-    <!-- Permissions -->
+    <!-- ====== Required Permissions ====== -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
@@ -12,8 +13,8 @@
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"/>
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO"/>
-    <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
+    <!-- ====== Application Section ====== -->
     <application
         android:label="@string/app_name"
         android:icon="@mipmap/ic_launcher"
@@ -22,28 +23,20 @@
         android:supportsRtl="true"
         android:appComponentFactory="androidx.core.app.CoreComponentFactory">
 
-        <!-- ✅ Firebase Messaging Service (Your Custom Handler) -->
+        <!-- ✅ Firebase Messaging Service -->
         <service
             android:name=".services.MyFirebaseMessagingService"
             android:exported="false">
-            <intent-filter>
-                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
-            </intent-filter>
-        </service>
-
-        <!-- ✅ Capacitor Push Notifications Service (Required for FCM token handling) -->
-        <service
-            android:name="com.getcapacitor.plugin.pushnotifications.MessagingService"
-            android:exported="true">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
 
-        <!-- ✅ AdMob -->
+        <!-- ✅ AdMob Configuration -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-4211898333188674~9892796996" />
+        <!-- Replace above with your real AdMob App ID when publishing -->
 
         <!-- ✅ Main Activity -->
         <activity
@@ -52,12 +45,12 @@
             android:launchMode="singleTask"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|screenLayout|density|uiMode">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
 
-        <!-- ✅ File Provider -->
+        <!-- ✅ File Provider (for camera and uploads) -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="app.lovable.fcbb65b390f2441890e8a8de327e1a60.fileprovider"
@@ -65,7 +58,8 @@
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths" />
+                android:resource="@xml/file_paths"/>
         </provider>
+
     </application>
 </manifest>
