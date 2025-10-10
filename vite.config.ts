@@ -6,22 +6,24 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"), // makes `@` point to `src/`
+      "@": path.resolve(__dirname, "src"), // `@` points to `src/`
     },
+  },
+  optimizeDeps: {
+    include: ["axios"], // Ensure axios is pre-bundled
   },
   build: {
     rollupOptions: {
-      // Prevent Vite from trying to bundle native-only Capacitor packages
-      external: ["@capacitor/android", "@capacitor/ios"],
       output: {
         manualChunks: {
           react: ["react", "react-dom", "react-router-dom"],
-          capacitor: ["@capacitor/core", "@capacitor-community/admob"], // web-safe only
           supabase: ["@supabase/supabase-js"],
           query: ["@tanstack/react-query"],
         },
         chunkFileNames: "assets/[name]-[hash].js",
       },
+      // Externalize packages if you want them to be loaded from CDN
+      external: [],
     },
     chunkSizeWarningLimit: 600,
   },
