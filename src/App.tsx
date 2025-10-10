@@ -18,7 +18,7 @@ export default function App() {
   const [queryClient] = useState(() => new QueryClient());
 
   useEffect(() => {
-    // Initialize AdMob and Push Notifications once app mounts
+    // Initialize AdMob and Push once when app mounts
     initAdMob();
     initPushService();
   }, []);
