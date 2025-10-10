@@ -36,6 +36,7 @@ android {
         }
     }
 
+    // ✅ Use Java 17 for Gradle 8 compatibility
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
