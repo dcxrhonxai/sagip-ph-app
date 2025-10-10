@@ -3,9 +3,9 @@ package app.lovable.fcbb65b390f2441890e8a8de327e1a60
 import android.content.Intent
 import android.os.Bundle
 import androidx.core.content.FileProvider
-import com.getcapacitor.BridgeActivity
 import com.getcapacitor.Plugin
 import com.getcapacitor.community.firebase.messaging.FirebaseMessagingPlugin
+import com.getcapacitor.BridgeActivity
 
 class MainActivity : BridgeActivity() {
 
