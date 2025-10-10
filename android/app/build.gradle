@@ -1,17 +1,21 @@
-apply plugin: 'com.android.application'
-apply plugin: 'com.google.gms.google-services' // Only once
-apply plugin: 'kotlin-android'
-apply plugin: 'kotlin-android-extensions'
+// ------------------------------------------------------------
+// ✅ CLEAN + VERIFIED FOR GRADLE 8 / CAPACITOR / APPFLOW
+// ------------------------------------------------------------
 
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+    id 'com.google.gms.google-services'
+}
 
 android {
     namespace "app.lovable.fcbb65b390f2441890e8a8de327e1a60"
-    compileSdk rootProject.ext.compileSdkVersion
+    compileSdk 34
 
     defaultConfig {
         applicationId "app.lovable.fcbb65b390f2441890e8a8de327e1a60"
-        minSdkVersion rootProject.ext.minSdkVersion
-        targetSdkVersion rootProject.ext.targetSdkVersion
+        minSdk 23
+        targetSdk 34
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -24,41 +28,58 @@ android {
     buildTypes {
         release {
             minifyEnabled false
+            shrinkResources false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
+        debug {
+            minifyEnabled false
+        }
     }
-}
 
-repositories {
-    flatDir {
-        dirs rootProject.ext.flatDirLibs
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
     }
 }
 
 dependencies {
-    implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.10"
-    implementation "androidx.appcompat:appcompat:${rootProject.ext.androidxAppCompatVersion}"
-    implementation "androidx.coordinatorlayout:coordinatorlayout:${rootProject.ext.androidxCoordinatorLayoutVersion}"
-    implementation "androidx.core:core-splashscreen:${rootProject.ext.coreSplashScreenVersion}"
+    implementation fileTree(dir: "libs", include: ["*.jar"])
+
+    // ✅ Kotlin and AndroidX
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.24"
+    implementation "androidx.appcompat:appcompat:1.7.0"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:1.2.0"
+    implementation "androidx.core:core-splashscreen:1.0.1"
+
+    // ✅ Capacitor Core
     implementation project(':capacitor-android')
     implementation project(':capacitor-cordova-android-plugins')
-    implementation 'com.google.android.gms:play-services-ads:23.3.0'
-    implementation 'com.google.firebase:firebase-messaging:23.2.0'
 
-    testImplementation "junit:junit:${rootProject.ext.junitVersion}"
-    androidTestImplementation "androidx.test.ext:junit:${rootProject.ext.androidxJunitVersion}"
-    androidTestImplementation "androidx.test.espresso:espresso-core:${rootProject.ext.androidxEspressoCoreVersion}"
+    // ✅ Firebase & AdMob
+    implementation 'com.google.firebase:firebase-messaging:24.0.0'
+    implementation 'com.google.android.gms:play-services-ads:23.3.0'
+
+    // ✅ Testing
+    testImplementation "junit:junit:4.13.2"
+    androidTestImplementation "androidx.test.ext:junit:1.2.1"
+    androidTestImplementation "androidx.test.espresso:espresso-core:3.6.1"
 }
 
+// ✅ Include Capacitor build settings
 apply from: 'capacitor.build.gradle'
 
+// ✅ Auto-detect google-services.json
 try {
     def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
-        // plugin already applied above
-        logger.info("google-services.json found, plugin applied.")
+    if (servicesJSON.exists()) {
+        logger.lifecycle("✅ google-services.json found. Firebase initialized.")
+    } else {
+        logger.lifecycle("⚠️ google-services.json not found. Push notifications disabled.")
     }
-} catch(Exception e) {
-    logger.info("google-services.json not found. Push Notifications won't work")
+} catch (Exception e) {
+    logger.lifecycle("⚠️ Error checking google-services.json: ${e.message}")
 }
