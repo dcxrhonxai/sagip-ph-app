@@ -29,21 +29,17 @@ const Index = () => {
   const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('emergency');
 
-  // Media states
+  // Media files
   const [lastAudio, setLastAudio] = useState<File | null>(null);
   const [lastPhoto, setLastPhoto] = useState<File | null>(null);
   const [lastVideo, setLastVideo] = useState<File | null>(null);
-  const [mediaUrls, setMediaUrls] = useState<{ audio?: string; photo?: string; video?: string }>({});
 
   const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
   const { sendNotifications } = useEmergencyNotifications();
 
   // Initialize AdMob
-  useEffect(() => {
-    initAdMob();
-  }, []);
+  useEffect(() => initAdMob(), []);
 
-  // Session handling
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -58,27 +54,20 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  // Upload file to Supabase Storage
-  const uploadFile = async (file: File, folder: string) => {
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const { data, error } = await supabase.storage
-        .from('emergency-media')
-        .upload(`${folder}/${fileName}`, file, { cacheControl: '3600', upsert: false });
-      if (error) throw error;
-
-      const { publicUrl } = supabase.storage.from('emergency-media').getPublicUrl(data.path);
-      return publicUrl;
-    } catch (err) {
-      console.error('Upload error:', err);
-      toast.error('Failed to upload media');
-      return null;
-    }
-  };
-
   const handleQuickSOS = async () => {
     handleEmergencyClick('🚨 EMERGENCY - SOS', 'Quick SOS activated - Immediate help needed');
+  };
+
+  // Upload media files to Supabase Storage
+  const uploadFile = async (file: File, folder: string) => {
+    const path = `${folder}/${Date.now()}_${file.name}`;
+    const { error } = await supabase.storage.from('emergency-media').upload(path, file);
+    if (error) {
+      console.error('Upload failed:', error);
+      return null;
+    }
+    const { data } = supabase.storage.from('emergency-media').getPublicUrl(path);
+    return data.publicUrl;
   };
 
   const handleEmergencyClick = async (type: string, description: string) => {
@@ -88,17 +77,24 @@ const Index = () => {
 
     const location = userLocation ?? { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
     setUserLocation(location);
-
     if (!session?.user) return;
 
-    // Upload media first
-    const uploadedAudio = lastAudio ? await uploadFile(lastAudio, 'audio') : null;
-    const uploadedPhoto = lastPhoto ? await uploadFile(lastPhoto, 'photo') : null;
-    const uploadedVideo = lastVideo ? await uploadFile(lastVideo, 'video') : null;
-
-    setMediaUrls({ audio: uploadedAudio, photo: uploadedPhoto, video: uploadedVideo });
-
     try {
+      // Upload media files if any
+      const evidenceFiles: string[] = [];
+      if (lastAudio) {
+        const audioUrl = await uploadFile(lastAudio, 'audio');
+        if (audioUrl) evidenceFiles.push(audioUrl);
+      }
+      if (lastPhoto) {
+        const photoUrl = await uploadFile(lastPhoto, 'photos');
+        if (photoUrl) evidenceFiles.push(photoUrl);
+      }
+      if (lastVideo) {
+        const videoUrl = await uploadFile(lastVideo, 'videos');
+        if (videoUrl) evidenceFiles.push(videoUrl);
+      }
+
       const { data, error } = await supabase
         .from('emergency_alerts')
         .insert({
@@ -107,7 +103,7 @@ const Index = () => {
           situation: description,
           latitude: location.lat,
           longitude: location.lng,
-          evidence_files: [uploadedAudio, uploadedPhoto, uploadedVideo].filter(Boolean),
+          evidence_files: evidenceFiles,
         })
         .select()
         .single();
@@ -115,10 +111,18 @@ const Index = () => {
       if (data) setCurrentAlertId(data.id);
       if (error) console.error('Error saving alert:', error);
 
-      // Send notifications to providers
-      sendNotifications(data?.id, type, description);
+      // Notify emergency providers
+      sendNotifications(data?.id, evidenceFiles);
+
+      // Reset media
+      setLastAudio(null);
+      setLastPhoto(null);
+      setLastVideo(null);
+
+      toast.success('Emergency alert sent to providers!');
     } catch (err) {
       console.error(err);
+      toast.error('Failed to send emergency alert');
     }
   };
 
@@ -132,7 +136,6 @@ const Index = () => {
     setShowEmergency(false);
     setUserLocation(null);
     setCurrentAlertId(null);
-    setMediaUrls({});
   };
 
   const handleLogout = async () => {
@@ -194,31 +197,31 @@ const Index = () => {
 
               <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
 
-              {/* Media Capture */}
+              {/* Media Capture Components */}
               <div className="space-y-4 mt-6">
-                <AudioRecorder onRecordingComplete={(blob) => setLastAudio(blob)} />
-                <CameraCapture onPhotoCapture={(file) => setLastPhoto(file)} />
-                <VideoRecorder onVideoComplete={(file) => setLastVideo(file)} />
+                <AudioRecorder onRecordingComplete={setLastAudio} />
+                <CameraCapture onPhotoCapture={setLastPhoto} />
+                <VideoRecorder onVideoComplete={setLastVideo} />
               </div>
 
               {/* Media Preview */}
               <div className="mt-6 space-y-4">
-                {mediaUrls.audio && (
+                {lastAudio && (
                   <div className="p-4 bg-secondary/10 rounded-lg">
                     <p className="font-semibold">Last Recorded Audio:</p>
-                    <audio src={mediaUrls.audio} controls className="w-full mt-2" />
+                    <audio src={URL.createObjectURL(lastAudio)} controls className="w-full mt-2" />
                   </div>
                 )}
-                {mediaUrls.photo && (
+                {lastPhoto && (
                   <div className="p-4 bg-secondary/10 rounded-lg">
                     <p className="font-semibold">Last Captured Photo:</p>
-                    <img src={mediaUrls.photo} alt="Captured" className="w-full mt-2 rounded-lg" />
+                    <img src={URL.createObjectURL(lastPhoto)} alt="Captured" className="w-full mt-2 rounded-lg" />
                   </div>
                 )}
-                {mediaUrls.video && (
+                {lastVideo && (
                   <div className="p-4 bg-secondary/10 rounded-lg">
                     <p className="font-semibold">Last Recorded Video:</p>
-                    <video src={mediaUrls.video} controls className="w-full mt-2 rounded-lg" />
+                    <video src={URL.createObjectURL(lastVideo)} controls className="w-full mt-2 rounded-lg" />
                   </div>
                 )}
               </div>
@@ -240,12 +243,8 @@ const Index = () => {
           <div className="space-y-6">
             <div className="bg-primary text-primary-foreground p-6 rounded-lg shadow-lg">
               <h2 className="text-xl font-bold mb-2">Emergency Alert Active</h2>
-              <p className="mb-2">
-                <strong>Type:</strong> {emergencyType}
-              </p>
-              <p className="mb-4">
-                <strong>Situation:</strong> {situation}
-              </p>
+              <p className="mb-2"><strong>Type:</strong> {emergencyType}</p>
+              <p className="mb-4"><strong>Situation:</strong> {situation}</p>
               <button
                 onClick={handleBack}
                 className="bg-primary-foreground text-primary px-4 py-2 rounded-md font-semibold hover:opacity-90 transition-opacity"
@@ -253,7 +252,6 @@ const Index = () => {
                 Cancel Alert
               </button>
             </div>
-
             {userLocation && <LocationMap location={userLocation} />}
           </div>
         )}
