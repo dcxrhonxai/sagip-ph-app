@@ -78,6 +78,31 @@
                 android:value="androidx.startup" />
         </provider>
 
+        <!-- Firebase Messaging Service -->
+        <service
+            android:name="com.google.firebase.messaging.FirebaseMessagingService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+            </intent-filter>
+        </service>
+
+        <!-- Firebase Instance ID Service (optional for legacy FCM) -->
+        <service
+            android:name="com.google.firebase.iid.FirebaseInstanceIdService"
+            android:exported="false"/>
+
+        <!-- Firebase Notification Receiver -->
+        <receiver
+            android:name="com.google.firebase.iid.FirebaseInstanceIdReceiver"
+            android:exported="true"
+            android:permission="com.google.android.c2dm.permission.SEND">
+            <intent-filter>
+                <action android:name="com.google.android.c2dm.intent.RECEIVE"/>
+                <category android:name="app.lovable.fcbb65b390f2441890e8a8de327e1a60"/>
+            </intent-filter>
+        </receiver>
+
         <!-- Profile Installer Receiver -->
         <receiver
             android:name="androidx.profileinstaller.ProfileInstallReceiver"
