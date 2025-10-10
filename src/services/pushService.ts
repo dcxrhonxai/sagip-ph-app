@@ -1,44 +1,41 @@
-// src/services/pushService.ts
 import { PushNotifications } from '@capacitor/push-notifications';
-import { Toast } from 'sonner';
+import { Toast } from 'sonner'; // Optional, for notification toasts
 
-export const initPushNotifications = () => {
-  // Request permission to use push notifications
-  PushNotifications.requestPermissions().then(result => {
-    if (result.receive === 'granted') {
-      // Register with APNS / FCM
-      PushNotifications.register();
-    } else {
+export const initPushNotifications = async () => {
+  try {
+    // Request permission
+    const permission = await PushNotifications.requestPermissions();
+    if (permission.receive !== 'granted') {
       console.warn('Push notification permission not granted');
-      Toast.error('Push notifications permission denied');
+      return;
     }
-  });
 
-  // On successful registration
-  PushNotifications.addListener('registration', token => {
-    console.log('Push registration success, token:', token.value);
-    // TODO: send token to your backend if needed
-  });
+    // Register with APNS/FCM
+    await PushNotifications.register();
 
-  // On registration error
-  PushNotifications.addListener('registrationError', error => {
-    console.error('Push registration error:', error);
-    Toast.error('Push registration failed');
-  });
+    // On successful registration, get the device token
+    PushNotifications.addListener('registration', (token) => {
+      console.log('Device token:', token.value);
+      // Send this token to your backend if needed
+    });
 
-  // On push notification received while app is in foreground
-  PushNotifications.addListener('pushNotificationReceived', notification => {
-    console.log('Push received:', notification);
-    Toast('Push received: ' + notification.title);
-  });
+    // Handle registration errors
+    PushNotifications.addListener('registrationError', (error) => {
+      console.error('Push registration error:', error);
+    });
 
-  // On push notification action performed (tap, click)
-  PushNotifications.addListener('pushNotificationActionPerformed', action => {
-    console.log('Push action performed:', action.notification);
-    // Example: navigate to a screen based on data
-    const data = action.notification.data;
-    if (data?.screen) {
-      window.location.href = data.screen; // or use React Router navigate()
-    }
-  });
+    // Handle push notifications received while the app is open
+    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      console.log('Push received:', notification);
+      Toast.success(notification.title || 'Notification received');
+    });
+
+    // Handle notification actions (tapping the notification)
+    PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+      console.log('Push action performed:', notification);
+      // Optionally navigate in your app based on notification data
+    });
+  } catch (err) {
+    console.error('Error initializing push notifications:', err);
+  }
 };
