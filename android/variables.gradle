@@ -1,7 +1,13 @@
+// variables.gradle
+// Centralized project-wide variables for SDK versions, dependencies, and build options.
+
 ext {
+    // SDK Versions
     minSdkVersion = 23
     compileSdkVersion = 35
     targetSdkVersion = 35
+
+    // AndroidX Versions
     androidxActivityVersion = '1.9.2'
     androidxAppCompatVersion = '1.7.0'
     androidxCoordinatorLayoutVersion = '1.2.0'
@@ -9,8 +15,19 @@ ext {
     androidxFragmentVersion = '1.8.4'
     coreSplashScreenVersion = '1.0.1'
     androidxWebkitVersion = '1.12.1'
+
+    // Testing
     junitVersion = '4.13.2'
     androidxJunitVersion = '1.2.1'
     androidxEspressoCoreVersion = '3.6.1'
+
+    // Cordova
     cordovaAndroidVersion = '10.1.1'
+
+    // Optional: Java/Kotlin versions
+    javaVersion = JavaVersion.VERSION_17
+    kotlinVersion = '1.9.10'
+
+    // FlatDir libraries for Capacitor/Cordova plugins
+    flatDirLibs = ['libs', '../capacitor-cordova-android-plugins/src/main/libs']
 }
