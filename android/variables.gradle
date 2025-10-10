@@ -1,4 +1,3 @@
-// variables.gradle
 // Centralized project-wide variables for SDK versions, dependencies, and build options.
 
 ext {
@@ -16,7 +15,7 @@ ext {
     coreSplashScreenVersion = '1.0.1'
     androidxWebkitVersion = '1.12.1'
 
-    // Testing libraries
+    // Testing
     junitVersion = '4.13.2'
     androidxJunitVersion = '1.2.1'
     androidxEspressoCoreVersion = '3.6.1'
@@ -24,7 +23,7 @@ ext {
     // Cordova / Capacitor
     cordovaAndroidVersion = '10.1.1'
 
-    // Java/Kotlin versions
+    // Optional: Java/Kotlin versions
     javaVersion = JavaVersion.VERSION_17
     kotlinVersion = '1.9.10'
 
