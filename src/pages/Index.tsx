@@ -29,6 +29,7 @@ const Index = () => {
   const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('emergency');
 
+  // Media states
   const [lastAudio, setLastAudio] = useState<string | null>(null);
   const [lastPhoto, setLastPhoto] = useState<string | null>(null);
   const [lastVideo, setLastVideo] = useState<string | null>(null);
@@ -37,8 +38,11 @@ const Index = () => {
   const { sendNotifications } = useEmergencyNotifications();
 
   // Initialize AdMob
-  useEffect(() => { initAdMob(); }, []);
+  useEffect(() => {
+    initAdMob();
+  }, []);
 
+  // Session handling
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -53,11 +57,13 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  // Quick SOS
   const handleQuickSOS = async () => {
     handleEmergencyClick('🚨 EMERGENCY - SOS', 'Quick SOS activated - Immediate help needed');
   };
 
-  const handleEmergencyClick = async (type: string, description: string, evidenceFiles?: any[]) => {
+  // Handle Emergency Alert
+  const handleEmergencyClick = async (type: string, description: string) => {
     setEmergencyType(type);
     setSituation(description);
     setShowEmergency(true);
@@ -68,6 +74,7 @@ const Index = () => {
     if (!session?.user) return;
 
     try {
+      // Send alert with media files to emergency providers
       const { data, error } = await supabase
         .from('emergency_alerts')
         .insert({
@@ -76,16 +83,23 @@ const Index = () => {
           situation: description,
           latitude: location.lat,
           longitude: location.lng,
-          evidence_files: evidenceFiles || [],
+          evidence_files: [lastAudio, lastPhoto, lastVideo].filter(Boolean),
         })
         .select()
         .single();
 
       if (data) setCurrentAlertId(data.id);
+
       if (error) console.error('Error saving alert:', error);
-    } catch (err) { console.error(err); }
+
+      // Optionally: Send push notifications
+      sendNotifications(data?.id, type, description);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
+  // Cancel/resolve alert
   const handleBack = async () => {
     if (currentAlertId) {
       await supabase
@@ -142,11 +156,10 @@ const Index = () => {
 
             <TabsContent value="emergency">
               {!alertsLoading && alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
-
               <div className="mb-6">
                 <Button
                   onClick={handleQuickSOS}
-                  className="w-full h-28 text-2xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse"
+                  className="w-full h-32 text-3xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse"
                   size="lg"
                 >
                   🚨 SOS
@@ -158,36 +171,33 @@ const Index = () => {
 
               <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
 
-              {/* Media Hub Component */}
-              <div className="mt-6 p-4 bg-secondary/10 rounded-lg space-y-4 shadow-md">
-                <h3 className="font-bold text-lg text-center mb-2">Media Hub</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <AudioRecorder onRecordingComplete={setLastAudio} />
-                  <CameraCapture onPhotoCapture={setLastPhoto} />
-                  <VideoRecorder onVideoComplete={setLastVideo} />
-                </div>
+              {/* Media Capture */}
+              <div className="space-y-4 mt-6">
+                <AudioRecorder onRecordingComplete={setLastAudio} />
+                <CameraCapture onPhotoCapture={setLastPhoto} />
+                <VideoRecorder onVideoComplete={setLastVideo} />
+              </div>
 
-                {/* Previews */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                  {lastAudio && (
-                    <div className="p-2 bg-background rounded-md flex flex-col items-center">
-                      <p className="font-semibold text-sm">Audio</p>
-                      <audio src={lastAudio} controls className="w-full mt-1" />
-                    </div>
-                  )}
-                  {lastPhoto && (
-                    <div className="p-2 bg-background rounded-md flex flex-col items-center">
-                      <p className="font-semibold text-sm">Photo</p>
-                      <img src={lastPhoto} alt="Captured" className="w-full mt-1 rounded-md object-cover" />
-                    </div>
-                  )}
-                  {lastVideo && (
-                    <div className="p-2 bg-background rounded-md flex flex-col items-center">
-                      <p className="font-semibold text-sm">Video</p>
-                      <video src={lastVideo} controls className="w-full mt-1 rounded-md object-cover" />
-                    </div>
-                  )}
-                </div>
+              {/* Media Preview */}
+              <div className="mt-6 space-y-4">
+                {lastAudio && (
+                  <div className="p-4 bg-secondary/10 rounded-lg">
+                    <p className="font-semibold">Last Recorded Audio:</p>
+                    <audio src={lastAudio} controls className="w-full mt-2" />
+                  </div>
+                )}
+                {lastPhoto && (
+                  <div className="p-4 bg-secondary/10 rounded-lg">
+                    <p className="font-semibold">Last Captured Photo:</p>
+                    <img src={lastPhoto} alt="Captured" className="w-full mt-2 rounded-lg" />
+                  </div>
+                )}
+                {lastVideo && (
+                  <div className="p-4 bg-secondary/10 rounded-lg">
+                    <p className="font-semibold">Last Recorded Video:</p>
+                    <video src={lastVideo} controls className="w-full mt-2 rounded-lg" />
+                  </div>
+                )}
               </div>
             </TabsContent>
 
@@ -207,8 +217,12 @@ const Index = () => {
           <div className="space-y-6">
             <div className="bg-primary text-primary-foreground p-6 rounded-lg shadow-lg">
               <h2 className="text-xl font-bold mb-2">Emergency Alert Active</h2>
-              <p className="mb-2"><strong>Type:</strong> {emergencyType}</p>
-              <p className="mb-4"><strong>Situation:</strong> {situation}</p>
+              <p className="mb-2">
+                <strong>Type:</strong> {emergencyType}
+              </p>
+              <p className="mb-4">
+                <strong>Situation:</strong> {situation}
+              </p>
               <button
                 onClick={handleBack}
                 className="bg-primary-foreground text-primary px-4 py-2 rounded-md font-semibold hover:opacity-90 transition-opacity"
@@ -216,6 +230,7 @@ const Index = () => {
                 Cancel Alert
               </button>
             </div>
+
             {userLocation && <LocationMap location={userLocation} />}
           </div>
         )}
