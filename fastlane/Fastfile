@@ -7,6 +7,18 @@ platform :android do
 
   desc "Build both Debug and Release APK & AAB"
   lane :build_all do
+
+    # Dynamically set JAVA_HOME based on platform
+    if RbConfig::CONFIG['host_os'] =~ /mswin|mingw|cygwin/
+      # Windows local path
+      ENV["JAVA_HOME"] ||= "C:\\Progra~1\\Java\\jdk-17"
+    else
+      # Linux CI/Appflow path
+      ENV["JAVA_HOME"] ||= "/usr/lib/jvm/java-17-openjdk-amd64"
+    end
+
+    UI.message("ℹ️ JAVA_HOME is set to: #{ENV['JAVA_HOME']}")
+
     UI.message("ℹ️ Starting Debug build...")
     gradle(
       task: "assembleDebug",
