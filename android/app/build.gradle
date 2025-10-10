@@ -1,5 +1,5 @@
 apply plugin: 'com.android.application'
-apply plugin: 'com.google.gms.google-services'
+apply plugin: 'com.google.gms.google-services' // Only once
 
 android {
     namespace "app.lovable.fcbb65b390f2441890e8a8de327e1a60"
@@ -40,6 +40,7 @@ dependencies {
     implementation project(':capacitor-android')
     implementation project(':capacitor-cordova-android-plugins')
     implementation 'com.google.android.gms:play-services-ads:23.3.0'
+    implementation 'com.google.firebase:firebase-messaging:23.2.0'
 
     testImplementation "junit:junit:${rootProject.ext.junitVersion}"
     androidTestImplementation "androidx.test.ext:junit:${rootProject.ext.androidxJunitVersion}"
@@ -51,8 +52,9 @@ apply from: 'capacitor.build.gradle'
 try {
     def servicesJSON = file('google-services.json')
     if (servicesJSON.text) {
-        apply plugin: 'com.google.gms.google-services'
+        // plugin already applied above
+        logger.info("google-services.json found, plugin applied.")
     }
 } catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+    logger.info("google-services.json not found. Push Notifications won't work")
 }
