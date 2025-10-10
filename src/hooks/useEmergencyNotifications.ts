@@ -1,65 +1,38 @@
-// src/hooks/useEmergencyNotifications.ts
-import { supabase } from '@/integrations/supabase/client';
-import axios from 'axios';
+import { useCallback } from "react";
+import axios from "axios";
 
-interface NotificationOptions {
-  alertId: string;
-  mediaUrls?: string[];
+interface NotificationPayload {
+  title: string;
+  message: string;
+  recipients: string[]; // array of device tokens or emails
+  data?: Record<string, any>; // optional additional data
 }
 
 export const useEmergencyNotifications = () => {
-  // Example: fetch emergency providers from your database
-  const fetchProviders = async () => {
-    const { data, error } = await supabase.from('emergency_providers').select('*');
-    if (error) console.error('Failed to fetch providers:', error);
-    return data || [];
-  };
+  /**
+   * Sends a notification to the specified recipients
+   * @param payload - Notification data
+   */
+  const sendNotifications = useCallback(async (payload: NotificationPayload) => {
+    try {
+      const response = await axios.post("/api/notifications/send", payload, {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
 
-  // Send notifications to providers
-  const sendNotifications = async (alertId: string, mediaUrls: string[] = []) => {
-    const providers = await fetchProviders();
-
-    const notifications: Promise<any>[] = providers.map(async (provider) => {
-      const { phone, email, webhook_url } = provider;
-
-      // 1️⃣ SMS Notification (via Twilio or similar service)
-      if (phone) {
-        try {
-          await axios.post('https://your-sms-api.com/send', {
-            to: phone,
-            message: `🚨 Emergency Alert! ID: ${alertId}. Check details in your dashboard.`,
-          });
-        } catch (err) {
-          console.error('SMS notification failed:', err);
-        }
+      if (response.status === 200) {
+        console.log("Notification sent successfully:", response.data);
+        return true;
+      } else {
+        console.warn("Failed to send notification:", response.statusText);
+        return false;
       }
-
-      // 2️⃣ Email Notification (via SendGrid, SES, etc.)
-      if (email) {
-        try {
-          await axios.post('https://your-email-api.com/send', {
-            to: email,
-            subject: '🚨 Emergency Alert Received',
-            body: `Alert ID: ${alertId}\nMedia: ${mediaUrls.join(', ')}`,
-          });
-        } catch (err) {
-          console.error('Email notification failed:', err);
-        }
-      }
-
-      // 3️⃣ Webhook Push
-      if (webhook_url) {
-        try {
-          await axios.post(webhook_url, { alertId, mediaUrls });
-        } catch (err) {
-          console.error('Webhook push failed:', err);
-        }
-      }
-    });
-
-    // Wait for all notifications to finish
-    await Promise.allSettled(notifications);
-  };
+    } catch (error: any) {
+      console.error("Error sending notification:", error?.response?.data || error.message);
+      return false;
+    }
+  }, []);
 
   return { sendNotifications };
 };
