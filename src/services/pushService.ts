@@ -1,53 +1,44 @@
 // src/services/pushService.ts
 import { PushNotifications } from '@capacitor/push-notifications';
-import { Capacitor } from '@capacitor/core';
 
 /**
- * Initialize push notifications for both web and native (Android/iOS)
+ * Initialize Push Notifications
  */
-export const initPushService = async () => {
-  if (!Capacitor.isNativePlatform()) {
-    console.log('Push Notifications are only available on native devices.');
-    return;
-  }
-
-  console.log('Initializing Push Notifications...');
+export async function initPushService() {
+  console.log('🔔 Initializing Push Notifications...');
 
   try {
-    // 1️⃣ Request permission from the user
-    const permStatus = await PushNotifications.requestPermissions();
+    let permStatus = await PushNotifications.checkPermissions();
+
+    if (permStatus.receive === 'prompt') {
+      permStatus = await PushNotifications.requestPermissions();
+    }
 
     if (permStatus.receive !== 'granted') {
-      console.warn('Push notification permission not granted');
+      console.warn('🚫 Push permission not granted');
       return;
     }
 
-    // 2️⃣ Register the device for push notifications
+    // Register with FCM/APNs
     await PushNotifications.register();
 
-    // 3️⃣ Listen for successful registration
-    PushNotifications.addListener('registration', (token) => {
-      console.log('📱 Push registration token:', token.value);
-      // TODO: You can send this token to your backend or Supabase
+    // Event listeners
+    PushNotifications.addListener('registration', token => {
+      console.log('✅ Push token:', token.value);
     });
 
-    // 4️⃣ Handle registration errors
-    PushNotifications.addListener('registrationError', (error) => {
-      console.error('❌ Push registration error:', error);
+    PushNotifications.addListener('registrationError', err => {
+      console.error('❌ Push registration error:', err);
     });
 
-    // 5️⃣ Handle notifications received while app is running
-    PushNotifications.addListener('pushNotificationReceived', (notification) => {
-      console.log('📩 Push notification received:', notification);
+    PushNotifications.addListener('pushNotificationReceived', notification => {
+      console.log('📨 Notification received:', notification);
     });
 
-    // 6️⃣ Handle notification actions (when user taps a notification)
-    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-      console.log('🔔 Notification action performed:', action.notification);
+    PushNotifications.addListener('pushNotificationActionPerformed', action => {
+      console.log('🎯 Notification action performed:', action);
     });
-
-    console.log('✅ Push Notifications initialized successfully');
   } catch (error) {
-    console.error('❌ Failed to initialize push notifications:', error);
+    console.error('⚠️ initPushService failed:', error);
   }
-};
+}
