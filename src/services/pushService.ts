@@ -1,35 +1,34 @@
 import { PushNotifications } from '@capacitor/push-notifications';
 
-export async function initPushNotifications() {
+export async function initPushService() {
   console.log('Initializing push notifications...');
+  
+  let permStatus = await PushNotifications.checkPermissions();
 
-  // Request permission for iOS (Android auto-granted)
-  let permStatus = await PushNotifications.requestPermissions();
+  if (permStatus.receive === 'prompt') {
+    permStatus = await PushNotifications.requestPermissions();
+  }
+
   if (permStatus.receive !== 'granted') {
-    console.warn('Push notification permission not granted');
+    console.warn('Push notifications permission not granted.');
     return;
   }
 
-  // Register with FCM
   await PushNotifications.register();
 
-  // On successful registration
-  PushNotifications.addListener('registration', (token) => {
-    console.log('Push registration success, token:', token.value);
+  PushNotifications.addListener('registration', token => {
+    console.log('Push registration token:', token.value);
   });
 
-  // On registration error
-  PushNotifications.addListener('registrationError', (error) => {
-    console.error('Push registration error:', error);
+  PushNotifications.addListener('registrationError', err => {
+    console.error('Push registration error:', err.error);
   });
 
-  // On receiving a notification
-  PushNotifications.addListener('pushNotificationReceived', (notification) => {
-    console.log('Push received:', notification);
+  PushNotifications.addListener('pushNotificationReceived', notification => {
+    console.log('Push notification received:', notification);
   });
 
-  // On notification action
-  PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-    console.log('Notification action performed:', action);
+  PushNotifications.addListener('pushNotificationActionPerformed', action => {
+    console.log('Push action performed:', action);
   });
 }
