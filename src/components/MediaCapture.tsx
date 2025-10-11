@@ -1,143 +1,189 @@
 import { useState } from "react";
-import { VoiceRecorder } from "@independo/capacitor-voice-recorder";
-import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Mic, Square, Play, Trash2, Camera as CameraIcon, Video } from "lucide-react";
+import { CameraCapture } from "./CameraCapture";
+import { AudioRecorder } from "./AudioRecorder";
+import { Card } from "./ui/card";
+import { Button } from "./ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { compressVideo, formatFileSize, getVideoSize } from "@/lib/videoCompression";
+import { uploadEvidence, UploadedFile } from "@/lib/storage";
+import { Loader2, Trash2, Upload } from "lucide-react";
 
-export const MediaCapture = () => {
-  const [isRecording, setIsRecording] = useState(false);
-  const [audioData, setAudioData] = useState<string | null>(null);
-  const [audioDuration, setAudioDuration] = useState(0);
-  const [lastPhoto, setLastPhoto] = useState<string | null>(null);
-  const [lastVideo, setLastVideo] = useState<string | null>(null);
+interface MediaCaptureProps {
+  userId: string;
+  onFilesUploaded?: (files: UploadedFile[]) => void;
+}
+
+export const MediaCapture = ({ userId, onFilesUploaded }: MediaCaptureProps) => {
+  const [capturedMedia, setCapturedMedia] = useState<Array<{
+    type: 'photo' | 'video' | 'audio';
+    data: string;
+    timestamp: Date;
+    size?: number;
+  }>>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
 
-  // ---------- PERMISSIONS ----------
-  const checkMicrophonePermission = async (): Promise<boolean> => {
-    const status = await VoiceRecorder.requestAudioRecordingPermission();
-    if (!status.value) {
-      toast({ title: "Permission denied", description: "Microphone access is required", variant: "destructive" });
+  const handleCameraCapture = async (imageData: string, type: 'photo' | 'video') => {
+    let finalData = imageData;
+    let size = getVideoSize(imageData);
+
+    if (type === 'video') {
+      toast({
+        title: "Compressing video...",
+        description: "Please wait while we optimize your video",
+      });
+
+      finalData = await compressVideo(imageData);
+      size = getVideoSize(finalData);
+
+      toast({
+        title: "Video ready",
+        description: `Size: ${formatFileSize(size)}`,
+      });
     }
-    return status.value;
+
+    setCapturedMedia((prev) => [
+      ...prev,
+      {
+        type,
+        data: finalData,
+        timestamp: new Date(),
+        size,
+      },
+    ]);
   };
 
-  const checkCameraPermission = async (): Promise<boolean> => {
-    const photo = await Camera.checkPermissions();
-    if (photo.camera !== "granted") {
-      toast({ title: "Permission denied", description: "Camera access is required", variant: "destructive" });
-      return false;
-    }
-    return true;
+  const handleAudioCapture = (audioData: string) => {
+    const size = getVideoSize(audioData);
+    setCapturedMedia((prev) => [
+      ...prev,
+      {
+        type: 'audio',
+        data: audioData,
+        timestamp: new Date(),
+        size,
+      },
+    ]);
   };
 
-  // ---------- AUDIO ----------
-  const startAudioRecording = async () => {
-    if (!(await checkMicrophonePermission())) return;
+  const handleUploadAll = async () => {
+    if (capturedMedia.length === 0) return;
 
-    try {
-      await VoiceRecorder.startRecording();
-      setIsRecording(true);
-      setAudioDuration(0);
+    setIsUploading(true);
+    const uploaded: UploadedFile[] = [];
 
-      const interval = setInterval(() => setAudioDuration((prev) => prev + 1), 1000);
-      (window as any).recordingInterval = interval;
-    } catch (err) {
-      console.error(err);
-      toast({ title: "Error", description: "Failed to start recording", variant: "destructive" });
-    }
-  };
-
-  const stopAudioRecording = async () => {
-    try {
-      const result = await VoiceRecorder.stopRecording();
-      if ((window as any).recordingInterval) clearInterval((window as any).recordingInterval);
-
-      setIsRecording(false);
-
-      if (result.value?.recordDataBase64) {
-        const url = `data:audio/aac;base64,${result.value.recordDataBase64}`;
-        setAudioData(url);
-        toast({ title: "Recording complete", description: `Recorded ${audioDuration} seconds` });
+    for (const media of capturedMedia) {
+      const result = await uploadEvidence(userId, media.data, media.type);
+      if (result) {
+        uploaded.push(result);
       }
-    } catch (err) {
-      console.error(err);
-      toast({ title: "Error", description: "Failed to stop recording", variant: "destructive" });
     }
+
+    if (uploaded.length > 0) {
+      setUploadedFiles((prev) => [...prev, ...uploaded]);
+      setCapturedMedia([]);
+      toast({
+        title: "Upload complete",
+        description: `${uploaded.length} file(s) uploaded successfully`,
+      });
+      onFilesUploaded?.(uploaded);
+    } else {
+      toast({
+        title: "Upload failed",
+        description: "Could not upload files. Please try again.",
+        variant: "destructive",
+      });
+    }
+
+    setIsUploading(false);
   };
 
-  const playAudio = () => audioData && new Audio(audioData).play();
-  const deleteAudio = () => { setAudioData(null); setAudioDuration(0); };
-  const formatDuration = (seconds: number) => `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, "0")}`;
-
-  // ---------- PHOTO ----------
-  const capturePhoto = async () => {
-    if (!(await checkCameraPermission())) return;
-
-    try {
-      const photo = await Camera.getPhoto({ resultType: CameraResultType.DataUrl, source: CameraSource.Camera });
-      if (photo.dataUrl) setLastPhoto(photo.dataUrl);
-    } catch (err) {
-      console.error(err);
-      toast({ title: "Error", description: "Failed to capture photo", variant: "destructive" });
-    }
-  };
-
-  // ---------- VIDEO ----------
-  const recordVideo = async () => {
-    if (!(await checkCameraPermission())) return;
-
-    try {
-      const video = await Camera.getPhoto({ resultType: CameraResultType.Uri, source: CameraSource.Camera, mediaType: "VIDEO" });
-      if (video.webPath) setLastVideo(video.webPath);
-    } catch (err) {
-      console.error(err);
-      toast({ title: "Error", description: "Failed to record video", variant: "destructive" });
-    }
+  const handleDeleteCaptured = (index: number) => {
+    setCapturedMedia((prev) => prev.filter((_, i) => i !== index));
   };
 
   return (
-    <div className="space-y-6 p-4">
-      {/* AUDIO */}
-      <Card className="p-4 space-y-4">
-        <h3 className="text-lg font-semibold">Audio Recording</h3>
-        {!isRecording && !audioData && (
-          <Button onClick={startAudioRecording} className="w-full"><Mic className="mr-2 h-4 w-4" /> Start Recording</Button>
-        )}
-        {isRecording && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-center gap-2 p-4 bg-destructive/10 rounded-lg">
-              <div className="animate-pulse h-3 w-3 bg-destructive rounded-full" />
-              <span className="font-mono text-lg">{formatDuration(audioDuration)}</span>
-            </div>
-            <Button onClick={stopAudioRecording} variant="destructive" className="w-full"><Square className="mr-2 h-4 w-4" /> Stop Recording</Button>
-          </div>
-        )}
-        {audioData && !isRecording && (
-          <div className="space-y-2">
-            <audio controls src={audioData} className="w-full" />
-            <div className="flex gap-2">
-              <Button onClick={playAudio} className="flex-1"><Play className="mr-2 h-4 w-4" /> Play</Button>
-              <Button onClick={deleteAudio} variant="destructive" className="flex-1"><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
-            </div>
-          </div>
-        )}
-      </Card>
+    <div className="space-y-4">
+      <Tabs defaultValue="camera" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="camera">Camera</TabsTrigger>
+          <TabsTrigger value="audio">Audio</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="camera">
+          <CameraCapture onCapture={handleCameraCapture} />
+        </TabsContent>
+        
+        <TabsContent value="audio">
+          <AudioRecorder onRecordingComplete={handleAudioCapture} />
+        </TabsContent>
+      </Tabs>
 
-      {/* PHOTO */}
-      <Card className="p-4 space-y-4">
-        <h3 className="text-lg font-semibold">Photo Capture</h3>
-        <Button onClick={capturePhoto} className="w-full"><CameraIcon className="mr-2 h-4 w-4" /> Capture Photo</Button>
-        {lastPhoto && <img src={lastPhoto} alt="Last captured" className="w-full rounded-md mt-2" />}
-      </Card>
+      {capturedMedia.length > 0 && (
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Captured Media ({capturedMedia.length})</h3>
+            <Button 
+              onClick={handleUploadAll} 
+              disabled={isUploading}
+              size="sm"
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload All
+                </>
+              )}
+            </Button>
+          </div>
+          <div className="space-y-2">
+            {capturedMedia.map((media, index) => (
+              <div key={index} className="flex items-center justify-between p-2 bg-secondary/10 rounded">
+                <div className="flex-1">
+                  <span className="text-sm">
+                    {media.type.charAt(0).toUpperCase() + media.type.slice(1)} - {media.timestamp.toLocaleTimeString()}
+                  </span>
+                  {media.size && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      {formatFileSize(media.size)}
+                    </span>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => handleDeleteCaptured(index)}
+                  className="h-8 w-8"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
-      {/* VIDEO */}
-      <Card className="p-4 space-y-4">
-        <h3 className="text-lg font-semibold">Video Recording</h3>
-        <Button onClick={recordVideo} className="w-full"><Video className="mr-2 h-4 w-4" /> Record Video</Button>
-        {lastVideo && <video controls src={lastVideo} className="w-full rounded-md mt-2" />}
-      </Card>
+      {uploadedFiles.length > 0 && (
+        <Card className="p-4">
+          <h3 className="text-lg font-semibold mb-4 text-green-600">Uploaded Evidence ({uploadedFiles.length})</h3>
+          <div className="space-y-2">
+            {uploadedFiles.map((file, index) => (
+              <div key={index} className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-950/20 rounded">
+                <span className="text-sm">
+                  {file.type.charAt(0).toUpperCase() + file.type.slice(1)} - Stored securely
+                </span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 };

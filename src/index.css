@@ -1,113 +1,93 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-@theme {
-  /*
-    Define custom colors with the --color- prefix.
-    Tailwind will then automatically generate utilities like bg-background,
-    text-background, border-background, etc.
-  */
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-
-  --color-emergency-red: var(--emergency-red);
-  --color-emergency-red-dark: var(--emergency-red-dark);
-  --color-success-green: var(--success-green);
-  --color-warning-yellow: var(--warning-yellow);
-
-  --color-sidebar-background: var(--sidebar-background);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-
-  --radius: var(--radius);
-}
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
 
 @layer base {
   :root {
     --background: 0 0% 98%;
     --foreground: 0 0% 10%;
-    /* ... (rest of your CSS variables remain unchanged) ... */
+
     --card: 0 0% 100%;
     --card-foreground: 0 0% 10%;
+
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 10%;
+
     --primary: 354 70% 54%;
     --primary-foreground: 0 0% 100%;
+
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 0 0% 10%;
+
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
+
     --accent: 210 100% 50%;
     --accent-foreground: 0 0% 100%;
+
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
+
     --border: 214.3 31.8% 91.4%;
     --input: 0 0% 95%;
     --ring: 354 70% 54%;
+
     --radius: 0.75rem;
+    
     --emergency-red: 354 70% 54%;
     --emergency-red-dark: 354 70% 44%;
     --success-green: 142 71% 45%;
     --warning-yellow: 45 93% 47%;
+    
     --shadow-emergency: 0 10px 40px -10px hsl(354 70% 54% / 0.4);
     --gradient-emergency: linear-gradient(135deg, hsl(354 70% 54%), hsl(354 70% 44%));
+
     --sidebar-background: 0 0% 98%;
+
     --sidebar-foreground: 240 5.3% 26.1%;
+
     --sidebar-primary: 240 5.9% 10%;
+
     --sidebar-primary-foreground: 0 0% 98%;
+
     --sidebar-accent: 240 4.8% 95.9%;
+
     --sidebar-accent-foreground: 240 5.9% 10%;
+
     --sidebar-border: 220 13% 91%;
+
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
   .dark {
-    /* ... (rest of your dark mode variables remain unchanged) ... */
     --background: 0 0% 10%;
     --foreground: 0 0% 98%;
+
     --card: 0 0% 15%;
     --card-foreground: 0 0% 98%;
+
     --popover: 0 0% 15%;
     --popover-foreground: 0 0% 98%;
+
     --primary: 354 70% 54%;
     --primary-foreground: 0 0% 100%;
+
     --secondary: 0 0% 20%;
     --secondary-foreground: 0 0% 98%;
+
     --muted: 0 0% 20%;
     --muted-foreground: 0 0% 65%;
+
     --accent: 210 100% 50%;
     --accent-foreground: 0 0% 100%;
+
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
+
     --border: 0 0% 20%;
     --input: 0 0% 20%;
     --ring: 354 70% 54%;
@@ -123,8 +103,11 @@
 }
 
 @layer base {
+  * {
+    @apply border-border;
+  }
+
   body {
-    /* Now correctly uses the new utility name */
     @apply bg-background text-foreground;
   }
 }
