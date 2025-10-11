@@ -1,7 +1,12 @@
 apply plugin: 'com.android.application'
 apply from: 'capacitor.build.gradle'
 
-// ✅ Only apply Google Services once (conditionally handled below)
+// ✅ Load keystore properties
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
 
 android {
     namespace "app.lovable.fcbb65b390f2441890e8a8de327e1a60"
@@ -15,28 +20,9 @@ android {
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
-        // ✅ Optimize web asset packaging (Capacitor best practice)
+        // ✅ Optimize web asset packaging
         aaptOptions {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
-        }
-    }
-
-    // ✅ Signing Config
-    signingConfigs {
-        release {
-            storeFile file("path/to/keystore.jks") // replace with your keystore path
-            storePassword "keystorePassword"      // replace with your keystore password
-            keyAlias "key0"                        // replace with your key alias
-            keyPassword "keyPassword"              // replace with your key password
-        }
-    }
-
-    buildTypes {
-        release {
-            // ✅ Keep minify off until you test ads in release mode
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            signingConfig signingConfigs.release
         }
     }
 
@@ -44,6 +30,26 @@ android {
     java {
         toolchain {
             languageVersion = JavaLanguageVersion.of(21)
+        }
+    }
+
+    // ✅ Signing configs using keystore.properties
+    signingConfigs {
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
     }
 }
