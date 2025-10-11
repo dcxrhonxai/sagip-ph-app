@@ -24,6 +24,11 @@ android {
         aaptOptions {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
+
+        // ✅ Enforce 64-bit support for Google Play
+        ndk {
+            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+        }
     }
 
     // ✅ Java 21 toolchain
@@ -50,6 +55,10 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.release
+            // ✅ Ensure native libraries packaged correctly
+            ndk {
+                abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
+            }
         }
     }
 }
@@ -58,13 +67,12 @@ repositories {
     google()
     mavenCentral()
     flatDir {
-        // ⚠️ Keep this only if required by Cordova legacy plugins
         dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
     }
 }
 
 dependencies {
-    // ✅ AdMob SDK (updated)
+    // ✅ AdMob SDK
     implementation 'com.google.android.gms:play-services-ads:23.2.0'
 
     // Default Capacitor dependencies
