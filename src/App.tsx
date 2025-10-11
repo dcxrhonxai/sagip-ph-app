@@ -4,9 +4,14 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+
+// Pages
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+
+// Components
+import VideoRecorder from "./components/VideoRecorder";
 
 const App = () => {
   const [queryClient] = useState(() => new QueryClient());
@@ -20,7 +25,8 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="/record" element={<VideoRecorder />} />
+            {/* Catch-all 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
