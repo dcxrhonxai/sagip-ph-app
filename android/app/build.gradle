@@ -21,11 +21,22 @@ android {
         }
     }
 
+    // ✅ Signing Config
+    signingConfigs {
+        release {
+            storeFile file("path/to/keystore.jks") // replace with your keystore path
+            storePassword "keystorePassword"      // replace with your keystore password
+            keyAlias "key0"                        // replace with your key alias
+            keyPassword "keyPassword"              // replace with your key password
+        }
+    }
+
     buildTypes {
         release {
             // ✅ Keep minify off until you test ads in release mode
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
     }
 
