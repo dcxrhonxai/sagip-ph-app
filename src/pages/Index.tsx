@@ -73,6 +73,105 @@ const Index = ({ session }: IndexProps) => {
     return () => AdMob.removeBanner().catch(() => {});
   }, [activeTab, showEmergency]);
 
+  // -------------------------------
+  // Quick SOS button
+  // -------------------------------
+  const handleQuickSOS = async () => {
+    handleEmergencyClick("🚨 EMERGENCY - SOS", "Quick SOS activated - Immediate help needed");
+  };
+
+  // -------------------------------
+  // Send emergency alert
+  // -------------------------------
+  const handleEmergencyClick = async (type: string, description: string, evidenceFiles?: any[]) => {
+    setEmergencyType(type);
+    setSituation(description);
+    setShowEmergency(true);
+
+    if (!navigator.geolocation) {
+      const defaultLocation = { lat: 14.5995, lng: 120.9842 };
+      setUserLocation(defaultLocation);
+      toast.warning("Geolocation not supported. Using default location.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const location = { lat: position.coords.latitude, lng: position.coords.longitude };
+        setUserLocation(location);
+
+        try {
+          const { data, error } = await supabase
+            .from("emergency_alerts")
+            .insert({
+              user_id: session.user.id,
+              emergency_type: type,
+              situation: description,
+              latitude: location.lat,
+              longitude: location.lng,
+              evidence_files: evidenceFiles || [],
+            })
+            .select()
+            .single();
+
+          if (data) {
+            setCurrentAlertId(data.id);
+
+            const { data: contacts } = await supabase
+              .from("personal_contacts")
+              .select("name, phone")
+              .eq("user_id", session.user.id);
+
+            if (contacts && contacts.length > 0) {
+              const formattedContacts = contacts.map((c) => ({
+                name: c.name,
+                phone: c.phone,
+                email: session.user.email || undefined,
+              }));
+
+              await sendNotifications(
+                data.id,
+                formattedContacts,
+                type,
+                description,
+                location,
+                evidenceFiles?.map((f) => ({ url: f.url, type: f.type }))
+              );
+            }
+          }
+
+          if (error) console.error("Error saving alert:", error);
+        } catch (err) {
+          console.error("Failed to send emergency alert:", err);
+        }
+      },
+      (err) => {
+        console.error("Geolocation error:", err);
+        const defaultLocation = { lat: 14.5995, lng: 120.9842 };
+        setUserLocation(defaultLocation);
+        toast.warning("Could not access your location. Using default location.");
+      }
+    );
+  };
+
+  // -------------------------------
+  // Cancel active emergency
+  // -------------------------------
+  const handleCancelEmergency = async () => {
+    if (currentAlertId) {
+      await supabase
+        .from("emergency_alerts")
+        .update({ status: "resolved", resolved_at: new Date().toISOString() })
+        .eq("id", currentAlertId);
+    }
+    setShowEmergency(false);
+    setUserLocation(null);
+    setCurrentAlertId(null);
+  };
+
+  // -------------------------------
+  // Render
+  // -------------------------------
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -122,8 +221,15 @@ const Index = ({ session }: IndexProps) => {
             {/* Emergency Tab */}
             <TabsContent value="emergency">
               {!alertsLoading && alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
-              <EmergencyForm onEmergencyClick={() => {}} userId={session.user.id} />
-              {userLocation && <LocationMap location={userLocation} />}
+              <Button
+                onClick={handleQuickSOS}
+                className="w-full h-32 text-3xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse mb-4"
+                size="lg"
+              >
+                🚨 SOS
+              </Button>
+              <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
+              {userLocation && <LocationMap location={userLocation} alerts={alerts} />}
             </TabsContent>
 
             <TabsContent value="contacts">
@@ -139,7 +245,12 @@ const Index = ({ session }: IndexProps) => {
             </TabsContent>
           </Tabs>
         ) : (
-          <div>{/* Active emergency UI (map + contacts) */}</div>
+          <div>
+            <LocationMap location={userLocation} alerts={alerts} />
+            <Button onClick={handleCancelEmergency} className="mt-4 w-full">
+              Cancel Emergency
+            </Button>
+          </div>
         )}
       </main>
     </div>
