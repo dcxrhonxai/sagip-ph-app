@@ -10,7 +10,7 @@ import { AdMob } from "@capacitor-community/admob";
 
 // ✅ Lazy-load pages/components
 const Index = lazy(() => import("./pages/Index"));
-const AuthSOS = lazy(() => import("./pages/AuthSOS")); // updated
+const AuthSOS = lazy(() => import("./pages/AuthSOS")); // AuthSOS now used
 const NotFound = lazy(() => import("./pages/NotFound"));
 const VideoRecorder = lazy(() => import("./components/VideoRecorder"));
 
