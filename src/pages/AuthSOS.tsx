@@ -55,10 +55,8 @@ const AuthSOS = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     const result = authSchema.safeParse({ email: loginEmail, password: loginPassword });
-    if (!result.success) {
-      toast.error(result.error.errors[0].message);
-      return;
-    }
+    if (!result.success) return toast.error(result.error.errors[0].message);
+
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
       email: result.data.email,
@@ -77,10 +75,8 @@ const AuthSOS = () => {
       fullName: signupFullName,
       phoneNumber: signupPhone || undefined,
     });
-    if (!result.success) {
-      toast.error(result.error.errors[0].message);
-      return;
-    }
+    if (!result.success) return toast.error(result.error.errors[0].message);
+
     setLoading(true);
     const redirectUrl = `${window.location.origin}/`;
     const { error } = await supabase.auth.signUp({
@@ -88,6 +84,7 @@ const AuthSOS = () => {
       password: result.data.password,
       options: { emailRedirectTo: redirectUrl, data: { full_name: result.data.fullName } },
     });
+
     if (error) {
       toast.error(error.message.includes("already registered")
         ? "This email is already registered. Please login."
@@ -95,34 +92,24 @@ const AuthSOS = () => {
     } else {
       toast.success("Account created successfully!");
       // Update profile with phone number
-      if (result.data.phoneNumber) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          await supabase.from("profiles").update({ phone_number: result.data.phoneNumber }).eq("id", user.id);
-        }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user && result.data.phoneNumber) {
+        await supabase.from("profiles").update({ phone_number: result.data.phoneNumber }).eq("id", user.id);
       }
     }
     setLoading(false);
   };
 
   // ----------------------
-  // SOS ALERT SUBMISSION
+  // SOS ALERT SUBMISSION (with real GPS & notifications)
   // ----------------------
   const handleSOSSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!session) {
-      toast.error("You must be logged in to send an emergency alert.");
-      return;
-    }
-    if (!emergencyType || !situation) {
-      toast.error("Please fill in all fields.");
-      return;
-    }
+    if (!session) return toast.error("You must be logged in to send an emergency alert.");
+    if (!emergencyType || !situation) return toast.error("Please fill in all fields.");
 
     setSubmittingSOS(true);
 
-    // Get current geolocation
     let latitude = 0;
     let longitude = 0;
 
@@ -132,13 +119,14 @@ const AuthSOS = () => {
       );
       latitude = position.coords.latitude;
       longitude = position.coords.longitude;
-    } catch (err) {
-      toast.error("Failed to retrieve GPS coordinates. Using default location.");
+    } catch {
+      toast.error("Failed to get GPS. Default location will be used.");
     }
 
     const { data: user } = await supabase.auth.getUser();
 
-    const { error } = await supabase.from("emergency_alerts").insert([
+    // Insert into emergency_alerts
+    const { data: alertData, error } = await supabase.from("emergency_alerts").insert([
       {
         user_id: user?.id,
         emergency_type: emergencyType,
@@ -146,13 +134,28 @@ const AuthSOS = () => {
         latitude,
         longitude,
         status: "active",
-        created_at: new Date().toISOString(), // ISO timestamp
-      },
+        created_at: new Date().toISOString(),
+      }
+    ]).select().single();
+
+    if (error) {
+      toast.error("Failed to send SOS alert.");
+      setSubmittingSOS(false);
+      return;
+    }
+
+    // Insert alert notification for this user
+    await supabase.from("alert_notifications").insert([
+      {
+        alert_id: alertData?.id,
+        user_id: user?.id,
+        message: `SOS alert sent: ${emergencyType}`,
+        read: false,
+        created_at: new Date().toISOString()
+      }
     ]);
 
-    if (error) toast.error("Failed to send SOS alert.");
-    else toast.success("Emergency alert sent successfully!");
-
+    toast.success("Emergency alert sent successfully!");
     setEmergencyType("");
     setSituation("");
     setSubmittingSOS(false);
@@ -172,9 +175,7 @@ const AuthSOS = () => {
             </div>
           </div>
           <h1 className="text-3xl font-bold text-foreground mb-2">Emergency Response PH</h1>
-          <p className="text-muted-foreground">
-            Login or create an account to send emergency alerts.
-          </p>
+          <p className="text-muted-foreground">Login or create an account to send emergency alerts.</p>
         </div>
 
         {/* Auth Tabs */}
@@ -210,7 +211,7 @@ const AuthSOS = () => {
             </TabsContent>
           </Tabs>
 
-          {/* SOS Alert Form */}
+          {/* SOS Form */}
           {session && (
             <div className="mt-6 border-t border-muted-foreground pt-4">
               <h2 className="text-lg font-semibold mb-2">Send SOS Alert</h2>
