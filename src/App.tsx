@@ -24,10 +24,11 @@ const pageVariants = {
 const App = () => {
   const [queryClient] = useState(() => new QueryClient());
   const [session, setSession] = useState<any>(null);
-  const [isAuthChecked, setIsAuthChecked] = useState(false); // ✅ prevent flashes
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const [preloadHomeData, setPreloadHomeData] = useState<{ location: { lat: number; lng: number }; alerts: any[] } | null>(null);
 
   // -------------------------------
-  // Initialize AdMob (native only)
+  // Initialize AdMob
   // -------------------------------
   useEffect(() => {
     const initAdMob = async () => {
@@ -44,7 +45,7 @@ const App = () => {
   }, []);
 
   // -------------------------------
-  // Check auth on app load
+  // Auth check
   // -------------------------------
   useEffect(() => {
     const checkAuth = async () => {
@@ -63,11 +64,44 @@ const App = () => {
   }, []);
 
   // -------------------------------
-  // Render fallback if auth not yet checked
+  // Preload home data (location + live alerts)
   // -------------------------------
-  if (!isAuthChecked) {
-    return <div className="text-center mt-10 text-gray-500">Loading app...</div>;
-  }
+  useEffect(() => {
+    if (!session) return;
+
+    const preload = async () => {
+      try {
+        // Get user location
+        const userLocation = await new Promise<{ lat: number; lng: number }>((resolve) => {
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+              () => resolve({ lat: 14.5995, lng: 120.9842 }) // fallback: Manila
+            );
+          } else {
+            resolve({ lat: 14.5995, lng: 120.9842 });
+          }
+        });
+
+        // Fetch active alerts
+        const { data: alerts } = await supabase
+          .from("emergency_alerts")
+          .select("*")
+          .eq("status", "active");
+
+        setPreloadHomeData({ location: userLocation, alerts: alerts || [] });
+      } catch (err) {
+        console.error("❌ Preload home data failed:", err);
+      }
+    };
+
+    preload();
+  }, [session]);
+
+  // -------------------------------
+  // Render fallback while auth or home data is loading
+  // -------------------------------
+  if (!isAuthChecked) return <div className="text-center mt-10 text-gray-500">Loading app...</div>;
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -78,10 +112,8 @@ const App = () => {
           <Suspense fallback={<div className="text-center mt-10 text-gray-500">Loading page...</div>}>
             <AnimatePresence mode="wait">
               <Routes>
-                {/* Redirect root to /home */}
                 <Route path="/" element={<Navigate to="/home" replace />} />
 
-                {/* Auth page */}
                 <Route
                   path="/auth"
                   element={
@@ -98,28 +130,34 @@ const App = () => {
                   }
                 />
 
-                {/* Home page - redirects to /auth if not logged in */}
                 <Route
                   path="/home"
                   element={
                     session ? (
-                      <motion.div
-                        key="home"
-                        initial="initial"
-                        animate="animate"
-                        exit="exit"
-                        variants={pageVariants}
-                        transition={{ duration: 0.3, ease: "easeInOut" }}
-                      >
-                        <Home session={session} />
-                      </motion.div>
+                      preloadHomeData ? (
+                        <motion.div
+                          key="home"
+                          initial="initial"
+                          animate="animate"
+                          exit="exit"
+                          variants={pageVariants}
+                          transition={{ duration: 0.3, ease: "easeInOut" }}
+                        >
+                          <Home
+                            session={session}
+                            initialLocation={preloadHomeData.location}
+                            initialAlerts={preloadHomeData.alerts}
+                          />
+                        </motion.div>
+                      ) : (
+                        <div className="text-center mt-10 text-gray-500">Loading home data...</div>
+                      )
                     ) : (
                       <Navigate to="/auth" replace />
                     )
                   }
                 />
 
-                {/* Catch-all 404 */}
                 <Route
                   path="*"
                   element={
