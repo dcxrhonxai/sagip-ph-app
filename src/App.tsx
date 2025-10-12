@@ -8,9 +8,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Capacitor } from "@capacitor/core";
 import { AdMob } from "@capacitor-community/admob";
 
-// ✅ Lazy-loaded pages/components
+// ✅ Lazy-load pages/components
 const AuthSOS = lazy(() => import("./pages/AuthSOS"));
-const Index = lazy(() => import("./pages/Index"));
+const Home = lazy(() => import("./pages/Index")); // Updated Index page with live SOS map
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // ✅ Page animation variants
@@ -22,20 +22,43 @@ const pageVariants = {
 
 const App = () => {
   const [queryClient] = useState(() => new QueryClient());
+  const [session, setSession] = useState<any>(null);
 
-  // Initialize AdMob safely on native
+  // -------------------------------
+  // Initialize AdMob (native only)
+  // -------------------------------
   useEffect(() => {
     const initAdMob = async () => {
       if (Capacitor.isNativePlatform()) {
         try {
-          await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: false });
-          console.log("✅ AdMob initialized");
-        } catch (err) {
-          console.error("AdMob init failed:", err);
+          await AdMob.initialize({
+            requestTrackingAuthorization: true,
+            initializeForTesting: false,
+          });
+          console.log("✅ AdMob initialized successfully");
+        } catch (error) {
+          console.error("❌ AdMob initialization failed:", error);
         }
+      } else {
+        console.log("ℹ️ Skipping AdMob initialization (web build)");
       }
     };
     initAdMob();
+  }, []);
+
+  // -------------------------------
+  // Supabase session check for seamless auth
+  // -------------------------------
+  useEffect(() => {
+    import("@/integrations/supabase/client").then(({ supabase }) => {
+      supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        setSession(session);
+      });
+
+      return () => subscription.unsubscribe();
+    });
   }, []);
 
   return (
@@ -48,7 +71,7 @@ const App = () => {
           <Suspense fallback={<div className="text-center mt-10 text-gray-500">Loading...</div>}>
             <AnimatePresence mode="wait">
               <Routes>
-                {/* Root redirects to /home */}
+                {/* Redirect root to /home */}
                 <Route path="/" element={<Navigate to="/home" replace />} />
 
                 {/* Auth page */}
@@ -68,7 +91,7 @@ const App = () => {
                   }
                 />
 
-                {/* Home page with live SOS map */}
+                {/* Home page (redirect to /auth if not logged in) */}
                 <Route
                   path="/home"
                   element={
@@ -80,7 +103,7 @@ const App = () => {
                       variants={pageVariants}
                       transition={{ duration: 0.3, ease: "easeInOut" }}
                     >
-                      <Index />
+                      <Home />
                     </motion.div>
                   }
                 />
