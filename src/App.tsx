@@ -51,8 +51,10 @@ const App = () => {
   // -------------------------------
   useEffect(() => {
     import("@/integrations/supabase/client").then(({ supabase }) => {
+      // Initial session
       supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
 
+      // Auth state listener
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         setSession(session);
       });
@@ -74,7 +76,7 @@ const App = () => {
                 {/* Redirect root to /home */}
                 <Route path="/" element={<Navigate to="/home" replace />} />
 
-                {/* Auth page */}
+                {/* Auth Page */}
                 <Route
                   path="/auth"
                   element={
@@ -91,7 +93,7 @@ const App = () => {
                   }
                 />
 
-                {/* Home page (redirect to /auth if not logged in) */}
+                {/* Home Page */}
                 <Route
                   path="/home"
                   element={
