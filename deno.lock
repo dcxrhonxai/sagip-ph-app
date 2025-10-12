@@ -1,6 +1,7 @@
 {
   "version": "5",
   "redirects": {
+    "https://deno.land/x/dotenv/load.ts": "https://deno.land/x/dotenv@v3.2.2/load.ts",
     "https://esm.sh/@supabase/functions-js@^2.1.5?target=denonext": "https://esm.sh/@supabase/functions-js@2.75.0?target=denonext",
     "https://esm.sh/@supabase/gotrue-js@^2.56.0?target=denonext": "https://esm.sh/@supabase/gotrue-js@2.75.0?target=denonext",
     "https://esm.sh/@supabase/node-fetch@^2.6.14?target=denonext": "https://esm.sh/@supabase/node-fetch@2.6.15?target=denonext",
@@ -24,6 +25,9 @@
     "https://deno.land/std@0.190.0/async/retry.ts": "c9248325ec08cc2cceb7618472e77589a51a25cee460e07b6096be34966c2ead",
     "https://deno.land/std@0.190.0/async/tee.ts": "47e42d35f622650b02234d43803d0383a89eb4387e1b83b5a40106d18ae36757",
     "https://deno.land/std@0.190.0/http/server.ts": "1b23463b5b36e4eebc495417f6af47a6f7d52e3294827a1226d2a1aab23d9d20",
+    "https://deno.land/x/dotenv@v3.2.2/load.ts": "cbd76a0aee01aad8d09222afaa1dd04b84d9d3e44637503b01bf77a91df9e041",
+    "https://deno.land/x/dotenv@v3.2.2/mod.ts": "077b48773de9205266a0b44c3c3a3c3083449ed64bb0b6cc461b95720678d38e",
+    "https://deno.land/x/dotenv@v3.2.2/util.ts": "693730877b13f8ead2b79b2aa31e2a0652862f7dc0c5f6d2f313f4d39c7b7670",
     "https://esm.sh/@supabase/functions-js@2.75.0/denonext/functions-js.mjs": "bcd848bbed8650f8465f73840f7ef7c288f4922db3f8a15471eaa0a8115ff386",
     "https://esm.sh/@supabase/functions-js@2.75.0?target=denonext": "1e688af48228fe08965e60c0dee4a9aba4b297cf97fb0ed974aa8bed654560d7",
     "https://esm.sh/@supabase/gotrue-js@2.75.0/denonext/gotrue-js.mjs": "c998eaecb46fe0d0f1551c7815257141901150c98fbe497863743e46d9078b27",
