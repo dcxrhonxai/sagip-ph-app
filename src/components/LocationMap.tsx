@@ -1,88 +1,89 @@
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
-import { motion, AnimatePresence } from "framer-motion";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { motion } from "framer-motion";
 
-// Custom emergency icon
-const emergencyIcon = new L.Icon({
-  iconUrl: "/icons/marker-red.png",
-  iconSize: [30, 40],
-  iconAnchor: [15, 40],
-  popupAnchor: [0, -40],
-});
+// Custom empty icon because we'll render marker with motion div
+const BlankIcon = new L.DivIcon({ className: "custom-marker" });
 
-const AnimatedMarkers = ({ alerts }: { alerts: any[] }) => {
+// Motion variants for “drop + bounce”
+const dropVariants = {
+  hidden: { y: -100, opacity: 0 },
+  visible: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 25 } },
+};
+
+export const LocationMap = ({
+  alerts,
+  initialLocation,
+}: {
+  alerts: any[];
+  initialLocation: { lat: number; lng: number };
+}) => {
   const [displayedAlerts, setDisplayedAlerts] = useState<any[]>([]);
 
+  // Stagger alerts with a slight delay for pin-drop effect
   useEffect(() => {
-    // Animate each new alert with delay
-    alerts.forEach((alert, index) => {
+    alerts.forEach((alert, i) => {
       if (!displayedAlerts.find((a) => a.id === alert.id)) {
-        setTimeout(() => {
-          setDisplayedAlerts((prev) => [...prev, alert]);
-        }, index * 150); // staggered entry: 150ms per pin
+        setTimeout(() => setDisplayedAlerts((prev) => [...prev, alert]), i * 200);
       }
     });
   }, [alerts, displayedAlerts]);
 
+  const newestAlert = displayedAlerts[displayedAlerts.length - 1];
+
   return (
-    <AnimatePresence>
-      {displayedAlerts.map((alert, index) => (
+    <MapContainer center={initialLocation} zoom={15} scrollWheelZoom className="w-full h-96 rounded-lg shadow-md">
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
+      {displayedAlerts.map((alert) => (
         <Marker
           key={alert.id}
           position={[alert.latitude, alert.longitude]}
-          icon={emergencyIcon}
-          eventHandlers={{
-            add: (e) => {
-              // optional: do something when marker added
-            },
-          }}
+          icon={BlankIcon} // use motion div
         >
           <Popup>
             <div className="space-y-1">
               <p className="font-bold">{alert.emergency_type}</p>
               <p>{alert.situation}</p>
-              <p className="text-xs text-gray-500">Reported by: {alert.user_id}</p>
             </div>
           </Popup>
+          <motion.div
+            className="w-8 h-10 bg-red-600 rounded-full shadow-lg"
+            variants={dropVariants}
+            initial="hidden"
+            animate="visible"
+          />
         </Marker>
       ))}
-    </AnimatePresence>
-  );
-};
 
-const LocationMap = ({ alerts, initialLocation }: { alerts: any[]; initialLocation: { lat: number; lng: number } }) => {
-  const newestAlert = alerts[alerts.length - 1];
-
-  return (
-    <MapContainer center={initialLocation} zoom={15} scrollWheelZoom={true} className="w-full h-96 rounded-lg shadow-md">
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-
-      {/* Animate all pins dropping in */}
-      <AnimatedMarkers alerts={alerts} />
-
-      {/* Highlight newest pin */}
       {newestAlert && (
         <Marker
           position={[newestAlert.latitude, newestAlert.longitude]}
-          icon={emergencyIcon}
+          icon={BlankIcon}
         >
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: [0, 1.2, 1], rotate: [0, 10, -10, 0] }}
-            transition={{ duration: 0.6, repeat: Infinity, repeatType: "reverse" }}
-          />
           <Popup>
             <div className="space-y-1">
               <p className="font-bold">{newestAlert.emergency_type}</p>
               <p>{newestAlert.situation}</p>
-              <p className="text-xs text-gray-500">Newest alert</p>
+              <p className="text-xs text-red-600">Newest alert</p>
             </div>
           </Popup>
+          <motion.div
+            className="w-10 h-12 bg-red-600 rounded-full shadow-lg"
+            variants={{
+              hidden: { y: -120, opacity: 0 },
+              visible: {
+                y: 0,
+                opacity: 1,
+                transition: { type: "spring", stiffness: 500, damping: 20, repeat: Infinity, repeatType: "mirror" },
+              },
+            }}
+            initial="hidden"
+            animate="visible"
+          />
         </Marker>
       )}
     </MapContainer>
   );
 };
-
-export default LocationMap;
