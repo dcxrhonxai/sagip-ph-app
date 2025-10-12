@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import EmergencyForm from "@/components/EmergencyForm";
-import ContactList from "@/components/ContactList";
 import PersonalContacts from "@/components/PersonalContacts";
 import AlertHistory from "@/components/AlertHistory";
 import { ActiveAlerts } from "@/components/ActiveAlerts";
@@ -11,7 +10,6 @@ import { Shield, LogOut, Heart, History, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { useRealtimeAlerts } from "@/hooks/useRealtimeAlerts";
 import { useEmergencyNotifications } from "@/hooks/useEmergencyNotifications";
 import type { Session } from "@supabase/supabase-js";
 import { Capacitor } from "@capacitor/core";
@@ -22,7 +20,9 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { motion, AnimatePresence } from "framer-motion";
 
-// Default map icon fix for Leaflet
+// -------------------------------
+// Leaflet default marker fix
+// -------------------------------
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
@@ -47,55 +47,40 @@ const Index = ({ session }: Props) => {
   const navigate = useNavigate();
   const [showEmergency, setShowEmergency] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [emergencyType, setEmergencyType] = useState("");
-  const [situation, setSituation] = useState("");
-  const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("emergency");
-
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [activeTab, setActiveTab] = useState("emergency");
   const { sendNotifications } = useEmergencyNotifications();
 
   // -------------------------------
-  // Initialize AdMob (native only)
+  // AdMob (native)
   // -------------------------------
   useEffect(() => {
-    const initAdMob = async () => {
-      if (Capacitor.isNativePlatform()) {
-        try {
-          await AdMob.initialize({
-            requestTrackingAuthorization: true,
-            initializeForTesting: false,
-          });
-        } catch (err) {
-          console.error("AdMob init failed:", err);
-        }
-      }
-    };
-    initAdMob();
+    if (Capacitor.isNativePlatform()) {
+      AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: false }).catch(console.error);
+    }
   }, []);
 
   // -------------------------------
-  // Load initial location & alerts
+  // Initial location & alerts
   // -------------------------------
   useEffect(() => {
     const loadInitialData = async () => {
-      // 1️⃣ Get user location
+      // User location
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-          },
-          () => {
-            setUserLocation({ lat: 14.5995, lng: 120.9842 }); // Manila fallback
-            toast.warning("Using default location (Manila)");
-          }
+          (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          () => setUserLocation({ lat: 14.5995, lng: 120.9842 }) // Manila fallback
         );
       } else {
         setUserLocation({ lat: 14.5995, lng: 120.9842 });
       }
 
-      // 2️⃣ Load initial alerts
-      const { data } = await supabase.from("emergency_alerts").select("*").order("created_at", { ascending: false }).limit(50);
+      // Initial alerts
+      const { data } = await supabase
+        .from("emergency_alerts")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(50);
       if (data) setAlerts(data);
     };
 
@@ -103,46 +88,39 @@ const Index = ({ session }: Props) => {
   }, []);
 
   // -------------------------------
-  // Real-time subscription
+  // Realtime subscription
   // -------------------------------
   useEffect(() => {
     const subscription = supabase
       .from("emergency_alerts")
-      .on("INSERT", (payload) => {
-        setAlerts((prev) => [payload.new, ...prev]); // newest first
-      })
+      .on("INSERT", (payload) => setAlerts((prev) => [payload.new, ...prev]))
       .subscribe();
 
-    return () => {
-      supabase.removeSubscription(subscription);
-    };
+    return () => supabase.removeSubscription(subscription);
   }, []);
 
   // -------------------------------
-  // Quick SOS handler
+  // Quick SOS
   // -------------------------------
   const handleQuickSOS = async () => {
-    const quickType = "🚨 EMERGENCY - SOS";
-    const quickSituation = "Quick SOS activated - Immediate help needed";
-
     if (!userLocation || !session?.user) return;
+
     const { data, error } = await supabase
       .from("emergency_alerts")
       .insert({
         user_id: session.user.id,
-        emergency_type: quickType,
-        situation: quickSituation,
+        emergency_type: "🚨 EMERGENCY - SOS",
+        situation: "Quick SOS activated - Immediate help needed",
         latitude: userLocation.lat,
         longitude: userLocation.lng,
       })
       .select()
       .single();
 
-    if (data) {
-      setCurrentAlertId(data.id);
-      setEmergencyType(quickType);
-      setSituation(quickSituation);
+    if (error) return console.error(error);
 
+    if (data) {
+      // Notify personal contacts
       const { data: contacts } = await supabase
         .from("personal_contacts")
         .select("name, phone")
@@ -152,22 +130,23 @@ const Index = ({ session }: Props) => {
         await sendNotifications(
           data.id,
           contacts.map((c) => ({ name: c.name, phone: c.phone })),
-          quickType,
-          quickSituation,
+          data.emergency_type,
+          data.situation,
           userLocation
         );
       }
     }
-    if (error) console.error(error);
   };
 
   // -------------------------------
-  // Pin drop animation
+  // Map marker animation variants
   // -------------------------------
   const markerVariants = {
     initial: { y: -50, opacity: 0 },
     animate: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 30 } },
   };
+
+  const newestAlertId = alerts[0]?.id;
 
   // -------------------------------
   // Render
@@ -189,7 +168,7 @@ const Index = ({ session }: Props) => {
             size="icon"
             onClick={async () => {
               await supabase.auth.signOut();
-              navigate("/auth");
+              navigate("/auth", { replace: true });
               toast.success("Logged out successfully");
             }}
           >
@@ -200,7 +179,6 @@ const Index = ({ session }: Props) => {
 
       {/* Main */}
       <main className="container mx-auto px-4 py-6 max-w-3xl space-y-6">
-        {/* Quick SOS */}
         <Button
           onClick={handleQuickSOS}
           className="w-full h-32 text-3xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse"
@@ -224,10 +202,8 @@ const Index = ({ session }: Props) => {
             </TabsTrigger>
           </TabsList>
 
-          {/* Emergency Tab */}
           <TabsContent value="emergency" className="space-y-4">
             {alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
-
             <EmergencyForm onEmergencyClick={() => {}} userId={session.user.id} />
 
             {userLocation && (
@@ -238,7 +214,7 @@ const Index = ({ session }: Props) => {
               >
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
                 <AnimatePresence>
-                  {alerts.map((alert, index) => (
+                  {alerts.map((alert) => (
                     <motion.div
                       key={alert.id}
                       variants={markerVariants}
@@ -246,7 +222,17 @@ const Index = ({ session }: Props) => {
                       animate="animate"
                       exit={{ opacity: 0 }}
                     >
-                      <Marker position={[alert.latitude, alert.longitude]}>
+                      <Marker
+                        position={[alert.latitude, alert.longitude]}
+                        icon={
+                          alert.id === newestAlertId
+                            ? new L.Icon({
+                                iconUrl: require("@/assets/pulse-pin.png"), // custom pulsing pin
+                                iconSize: [35, 35],
+                              })
+                            : undefined
+                        }
+                      >
                         <Popup>
                           <strong>{alert.emergency_type}</strong>
                           <br />
@@ -260,17 +246,14 @@ const Index = ({ session }: Props) => {
             )}
           </TabsContent>
 
-          {/* Contacts */}
           <TabsContent value="contacts">
             <PersonalContacts userId={session.user.id} />
           </TabsContent>
 
-          {/* Profile */}
           <TabsContent value="profile">
             <EmergencyProfile userId={session.user.id} />
           </TabsContent>
 
-          {/* History */}
           <TabsContent value="history">
             <AlertHistory userId={session.user.id} />
           </TabsContent>
