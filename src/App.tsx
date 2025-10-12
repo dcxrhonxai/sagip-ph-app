@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Toaster } from "@/components/ui/toaster";
@@ -8,7 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Capacitor } from "@capacitor/core";
 import { AdMob } from "@capacitor-community/admob";
 
-// ✅ Lazy-load pages
+// ✅ Lazy-load pages/components
 const Index = lazy(() => import("./pages/Index"));
 const AuthSOS = lazy(() => import("./pages/AuthSOS"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -24,7 +24,7 @@ const pageVariants = {
 const App = () => {
   const [queryClient] = useState(() => new QueryClient());
 
-  // ✅ Initialize AdMob on native only
+  // ✅ Initialize AdMob on native platforms
   useEffect(() => {
     const initAdMob = async () => {
       if (Capacitor.isNativePlatform()) {
@@ -74,7 +74,7 @@ const App = () => {
                   }
                 />
 
-                {/* Auth + SOS Page */}
+                {/* AuthSOS Page */}
                 <Route
                   path="/auth"
                   element={
