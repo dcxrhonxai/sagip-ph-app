@@ -120,23 +120,34 @@ const AuthSOS = () => {
     }
     setSubmittingSOS(true);
 
-    const { data: user } = await supabase.auth.getUser();
-    const { error } = await supabase.from("emergency_alerts").insert([{
-      user_id: user?.id,
-      emergency_type: emergencyType,
-      situation,
-      latitude: 0, // replace with actual geolocation if needed
-      longitude: 0,
-      status: "active",
-      created_at: new Date().toISOString(),
-    }]);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
 
-    if (error) toast.error("Failed to send SOS alert.");
-    else toast.success("Emergency alert sent!");
+        const { data: user } = await supabase.auth.getUser();
+        const { error } = await supabase.from("emergency_alerts").insert([{
+          user_id: user?.id,
+          emergency_type: emergencyType,
+          situation,
+          latitude,
+          longitude,
+          status: "active",
+          created_at: new Date().toISOString(),
+        }]);
 
-    setEmergencyType("");
-    setSituation("");
-    setSubmittingSOS(false);
+        if (error) toast.error("Failed to send SOS alert: " + error.message);
+        else toast.success("Emergency alert sent!");
+
+        setEmergencyType("");
+        setSituation("");
+        setSubmittingSOS(false);
+      },
+      (err) => {
+        toast.error("Failed to get GPS coordinates: " + err.message);
+        setSubmittingSOS(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   // ----------------------
