@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabaseClient"; // ensure this path exists
+import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import type { Session } from "@supabase/supabase-js";
 import { authSchema } from "@/lib/validation";
 
-const Auth = () => {
+const AuthSOS = () => {
   const navigate = useNavigate();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(false);
@@ -26,14 +26,14 @@ const Auth = () => {
   const [signupPhone, setSignupPhone] = useState("");
 
   useEffect(() => {
-    // Check for existing session
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      if (data.session) navigate("/");
+    // Check existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) navigate("/");
     });
 
     // Listen for auth changes
-    const { subscription } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) navigate("/");
     });
@@ -41,14 +41,10 @@ const Auth = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const result = authSchema.safeParse({
-      email: loginEmail,
-      password: loginPassword,
-    });
-
+    const result = authSchema.safeParse({ email: loginEmail, password: loginPassword });
     if (!result.success) {
       toast.error(result.error.errors[0].message);
       return;
@@ -65,7 +61,7 @@ const Auth = () => {
     setLoading(false);
   };
 
-  const handleSignup = async (e: React.FormEvent<HTMLFormElement>): Promise<void> => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const result = authSchema.safeParse({
@@ -101,13 +97,13 @@ const Auth = () => {
     } else {
       toast.success("Account created successfully!");
 
-      // Update profile with phone number if provided
+      // Update profile with phone number
       if (result.data.phoneNumber) {
-        const { data } = await supabase.auth.getUser();
-        if (data.user) {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
           await supabase.from("profiles").update({
             phone_number: result.data.phoneNumber
-          }).eq("id", data.user.id);
+          }).eq("id", user.id);
         }
       }
     }
@@ -117,7 +113,6 @@ const Auth = () => {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
             <div className="bg-primary p-4 rounded-full">
@@ -130,7 +125,6 @@ const Auth = () => {
           </p>
         </div>
 
-        {/* Auth Tabs */}
         <div className="bg-card rounded-lg shadow-lg p-6">
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -138,7 +132,6 @@ const Auth = () => {
               <TabsTrigger value="signup">Sign Up</TabsTrigger>
             </TabsList>
 
-            {/* Login Tab */}
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
@@ -169,7 +162,6 @@ const Auth = () => {
               </form>
             </TabsContent>
 
-            {/* Signup Tab */}
             <TabsContent value="signup">
               <form onSubmit={handleSignup} className="space-y-4">
                 <div className="space-y-2">
@@ -224,7 +216,6 @@ const Auth = () => {
           </Tabs>
         </div>
 
-        {/* Info Banner */}
         <div className="mt-6 bg-accent/10 border border-accent/20 rounded-lg p-4 flex gap-3">
           <AlertCircle className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
           <div className="text-sm text-muted-foreground">
@@ -237,4 +228,4 @@ const Auth = () => {
   );
 };
 
-export default Auth;
+export default AuthSOS;
