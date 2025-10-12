@@ -1,8 +1,8 @@
+// src/hooks/useRealtimeAlerts.ts
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 
-export interface RealtimeAlert {
+export interface EmergencyAlert {
   id: string;
   user_id: string;
   emergency_type: string;
@@ -11,107 +11,62 @@ export interface RealtimeAlert {
   longitude: number;
   status: string;
   created_at: string;
-  evidence_files: any;
+  resolved_at: string | null;
 }
 
-export const useRealtimeAlerts = (userId: string | undefined) => {
-  const [alerts, setAlerts] = useState<RealtimeAlert[]>([]);
+export const useRealtimeAlerts = (userId?: string) => {
+  const [alerts, setAlerts] = useState<EmergencyAlert[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const { toast } = useToast();
 
   useEffect(() => {
-    if (!userId) {
-      setIsLoading(false);
-      return;
-    }
+    let subscription: any;
 
-    // Fetch initial alerts
-    const fetchAlerts = async () => {
+    const fetchInitialAlerts = async () => {
       const { data, error } = await supabase
-        .from("emergency_alerts")
+        .from<EmergencyAlert>("emergency_alerts")
         .select("*")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(50);
 
-      if (error) {
-        console.error("Error fetching alerts:", error);
-        toast({
-          title: "Error",
-          description: "Failed to load alerts",
-          variant: "destructive",
-        });
-      } else {
-        setAlerts(data || []);
-      }
+      if (!error && data) setAlerts(data);
       setIsLoading(false);
     };
 
-    fetchAlerts();
+    fetchInitialAlerts();
 
-    // Subscribe to realtime changes
-    const channel = supabase
-      .channel("emergency_alerts_changes")
+    // Subscribe to Realtime changes
+    subscription = supabase
+      .channel("public:emergency_alerts")
       .on(
         "postgres_changes",
         {
-          event: "INSERT",
+          event: "*", // insert, update, delete
           schema: "public",
           table: "emergency_alerts",
-          filter: `user_id=eq.${userId}`,
         },
         (payload) => {
-          console.log("New alert:", payload);
-          setAlerts((prev) => [payload.new as RealtimeAlert, ...prev]);
-          
-          toast({
-            title: "Emergency Alert Created",
-            description: `${payload.new.emergency_type} alert is now active`,
+          const newAlert = payload.new as EmergencyAlert;
+
+          setAlerts((prev) => {
+            switch (payload.eventType) {
+              case "INSERT":
+                return [newAlert, ...prev];
+              case "UPDATE":
+                return prev.map((a) => (a.id === newAlert.id ? newAlert : a));
+              case "DELETE":
+                return prev.filter((a) => a.id !== payload.old.id);
+              default:
+                return prev;
+            }
           });
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "emergency_alerts",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          console.log("Alert updated:", payload);
-          setAlerts((prev) =>
-            prev.map((alert) =>
-              alert.id === payload.new.id ? (payload.new as RealtimeAlert) : alert
-            )
-          );
-
-          if (payload.new.status !== payload.old.status) {
-            toast({
-              title: "Alert Status Updated",
-              description: `Alert is now ${payload.new.status}`,
-            });
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "DELETE",
-          schema: "public",
-          table: "emergency_alerts",
-          filter: `user_id=eq.${userId}`,
-        },
-        (payload) => {
-          console.log("Alert deleted:", payload);
-          setAlerts((prev) => prev.filter((alert) => alert.id !== payload.old.id));
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      if (subscription) supabase.removeChannel(subscription);
     };
-  }, [userId, toast]);
+  }, [userId]);
 
   return { alerts, isLoading };
 };
