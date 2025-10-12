@@ -8,9 +8,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Capacitor } from "@capacitor/core";
 import { AdMob } from "@capacitor-community/admob";
 
-// ✅ Lazy-load existing pages/components (match your folder structure)
+// ✅ Lazy-load pages
 const Index = lazy(() => import("./pages/Index"));
-const Auth = lazy(() => import("./pages/Auth"));
+const AuthSOS = lazy(() => import("./pages/AuthSOS"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const VideoRecorder = lazy(() => import("./components/VideoRecorder"));
 
@@ -24,7 +24,7 @@ const pageVariants = {
 const App = () => {
   const [queryClient] = useState(() => new QueryClient());
 
-  // ✅ Initialize AdMob safely on native only
+  // ✅ Initialize AdMob on native only
   useEffect(() => {
     const initAdMob = async () => {
       if (Capacitor.isNativePlatform()) {
@@ -57,7 +57,7 @@ const App = () => {
                 {/* Redirect root to /home */}
                 <Route path="/" element={<Navigate to="/home" replace />} />
 
-                {/* ✅ Home Page */}
+                {/* Home Page */}
                 <Route
                   path="/home"
                   element={
@@ -74,7 +74,7 @@ const App = () => {
                   }
                 />
 
-                {/* ✅ Auth Page */}
+                {/* Auth + SOS Page */}
                 <Route
                   path="/auth"
                   element={
@@ -86,12 +86,12 @@ const App = () => {
                       variants={pageVariants}
                       transition={{ duration: 0.3, ease: "easeInOut" }}
                     >
-                      <Auth />
+                      <AuthSOS />
                     </motion.div>
                   }
                 />
 
-                {/* ✅ Video Recorder */}
+                {/* Video Recorder */}
                 <Route
                   path="/record"
                   element={
@@ -108,7 +108,7 @@ const App = () => {
                   }
                 />
 
-                {/* ✅ Catch-All 404 */}
+                {/* Catch-All 404 */}
                 <Route
                   path="*"
                   element={
