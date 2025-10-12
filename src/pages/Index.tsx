@@ -2,14 +2,13 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import EmergencyForm from "@/components/EmergencyForm";
-import LocationMap from "@/components/LocationMap";
+import { LiveSOSMap } from "@/components/LiveSOSMap"; // merged LiveSOSMap
 import ContactList from "@/components/ContactList";
-import ShareLocation from "@/components/ShareLocation";
 import PersonalContacts from "@/components/PersonalContacts";
 import AlertHistory from "@/components/AlertHistory";
 import { ActiveAlerts } from "@/components/ActiveAlerts";
 import { EmergencyProfile } from "@/components/EmergencyProfile";
-import { Shield, LogOut, User, History, Users, Heart } from "lucide-react";
+import { Shield, LogOut, Heart, History, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -40,16 +39,13 @@ const Index = () => {
   const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
   const { sendNotifications } = useEmergencyNotifications();
 
-  // ✅ Initialize AdMob safely (native only)
+  // Initialize AdMob safely (native only)
   useEffect(() => {
     const initAdMob = async () => {
       if (Capacitor.isNativePlatform()) {
         try {
-          await AdMob.initialize({
-            requestTrackingAuthorization: true,
-            initializeForTesting: false,
-          });
-          console.log("✅ AdMob initialized on native platform");
+          await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: false });
+          console.log("✅ AdMob initialized");
         } catch (err) {
           console.error("AdMob init failed:", err);
         }
@@ -58,13 +54,13 @@ const Index = () => {
     initAdMob();
   }, []);
 
-  // ✅ Show banner ad only on the home tab (no violations)
+  // Show banner ad
   useEffect(() => {
     const showBanner = async () => {
       if (Capacitor.isNativePlatform() && activeTab === "emergency" && !showEmergency) {
         try {
           await AdMob.showBanner({
-            adId: "ca-app-pub-4211898333188674/1234567890", // Banner Ad Unit
+            adId: "ca-app-pub-4211898333188674/1234567890",
             adSize: BannerAdSize.BANNER,
             position: BannerAdPosition.BOTTOM_CENTER,
           });
@@ -76,31 +72,24 @@ const Index = () => {
       }
     };
     showBanner();
-
-    return () => {
-      AdMob.removeBanner().catch(() => {});
-    };
+    return () => { AdMob.removeBanner().catch(() => {}); };
   }, [activeTab, showEmergency]);
 
+  // Auth check
   useEffect(() => {
-    // Auth check
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (!session) navigate("/auth");
     });
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (!session) navigate("/auth");
     });
-
     return () => subscription.unsubscribe();
   }, [navigate]);
 
   const handleQuickSOS = async () => {
-    const quickType = "🚨 EMERGENCY - SOS";
-    const quickSituation = "Quick SOS activated - Immediate help needed";
-    handleEmergencyClick(quickType, quickSituation);
+    handleEmergencyClick("🚨 EMERGENCY - SOS", "Quick SOS activated - Immediate help needed");
   };
 
   const handleEmergencyClick = async (type: string, description: string, evidenceFiles?: any[]) => {
@@ -212,24 +201,26 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 max-w-2xl">
+        {/* Live SOS Map */}
+        <div className="mb-6">
+          <h2 className="text-xl font-bold mb-2">Live Emergency Alerts Map</h2>
+          <LiveSOSMap alerts={alerts} />
+        </div>
+
         {!showEmergency ? (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="emergency" className="flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                Emergency
+                <Shield className="w-4 h-4" /> Emergency
               </TabsTrigger>
               <TabsTrigger value="contacts" className="flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                Contacts
+                <Users className="w-4 h-4" /> Contacts
               </TabsTrigger>
               <TabsTrigger value="profile" className="flex items-center gap-2">
-                <Heart className="w-4 h-4" />
-                Profile
+                <Heart className="w-4 h-4" /> Profile
               </TabsTrigger>
               <TabsTrigger value="history" className="flex items-center gap-2">
-                <History className="w-4 h-4" />
-                History
+                <History className="w-4 h-4" /> History
               </TabsTrigger>
             </TabsList>
 
@@ -284,12 +275,7 @@ const Index = () => {
               </button>
             </div>
 
-            {/* Map & Contacts */}
-            {userLocation && (
-              <div className="bg-card rounded-lg shadow-lg overflow-hidden">
-                <LocationMap location={userLocation} />
-              </div>
-            )}
+            {userLocation && <LocationMap location={userLocation} />}
 
             <ContactList emergencyType={emergencyType} userLocation={userLocation} />
 
