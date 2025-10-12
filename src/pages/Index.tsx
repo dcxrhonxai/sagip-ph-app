@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import EmergencyForm from "@/components/EmergencyForm";
-import { LiveSOSMap } from "@/components/LiveSOSMap"; // merged LiveSOSMap
+import LocationMap from "@/components/LocationMap";
 import ContactList from "@/components/ContactList";
 import PersonalContacts from "@/components/PersonalContacts";
 import AlertHistory from "@/components/AlertHistory";
@@ -17,6 +17,7 @@ import { useEmergencyNotifications } from "@/hooks/useEmergencyNotifications";
 import type { Session } from "@supabase/supabase-js";
 import { Capacitor } from "@capacitor/core";
 import { AdMob, BannerAdSize, BannerAdPosition } from "@capacitor-community/admob";
+import { LiveSOSMap } from "@/components/LiveSOSMap";
 
 export interface EmergencyContact {
   id: string;
@@ -39,13 +40,37 @@ const Index = () => {
   const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
   const { sendNotifications } = useEmergencyNotifications();
 
-  // Initialize AdMob safely (native only)
+  // -------------------------------
+  // Auth check & redirect to /auth if not logged in
+  // -------------------------------
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        navigate("/auth", { replace: true });
+      } else {
+        setSession(session);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        navigate("/auth", { replace: true });
+      } else {
+        setSession(session);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  // -------------------------------
+  // AdMob Initialization
+  // -------------------------------
   useEffect(() => {
     const initAdMob = async () => {
       if (Capacitor.isNativePlatform()) {
         try {
           await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: false });
-          console.log("✅ AdMob initialized");
         } catch (err) {
           console.error("AdMob init failed:", err);
         }
@@ -54,7 +79,6 @@ const Index = () => {
     initAdMob();
   }, []);
 
-  // Show banner ad
   useEffect(() => {
     const showBanner = async () => {
       if (Capacitor.isNativePlatform() && activeTab === "emergency" && !showEmergency) {
@@ -72,24 +96,19 @@ const Index = () => {
       }
     };
     showBanner();
-    return () => { AdMob.removeBanner().catch(() => {}); };
+
+    return () => {
+      AdMob.removeBanner().catch(() => {});
+    };
   }, [activeTab, showEmergency]);
 
-  // Auth check
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (!session) navigate("/auth");
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (!session) navigate("/auth");
-    });
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
+  // -------------------------------
+  // Emergency handlers
+  // -------------------------------
   const handleQuickSOS = async () => {
-    handleEmergencyClick("🚨 EMERGENCY - SOS", "Quick SOS activated - Immediate help needed");
+    const quickType = "🚨 EMERGENCY - SOS";
+    const quickSituation = "Quick SOS activated - Immediate help needed";
+    handleEmergencyClick(quickType, quickSituation);
   };
 
   const handleEmergencyClick = async (type: string, description: string, evidenceFiles?: any[]) => {
@@ -124,11 +143,11 @@ const Index = () => {
                 .select("name, phone")
                 .eq("user_id", session.user.id);
 
-              if (contacts && contacts.length > 0) {
+              if (contacts?.length) {
                 const formattedContacts = contacts.map((c) => ({
                   name: c.name,
                   phone: c.phone,
-                  email: session.user.email ? session.user.email : undefined,
+                  email: session.user.email ?? undefined,
                 }));
 
                 await sendNotifications(
@@ -174,7 +193,7 @@ const Index = () => {
     toast.success("Logged out successfully");
   };
 
-  if (!session) return null;
+  if (!session) return null; // wait until session state is confirmed
 
   return (
     <div className="min-h-screen bg-background">
@@ -201,72 +220,69 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6 max-w-2xl">
-        {/* Live SOS Map */}
-        <div className="mb-6">
-          <h2 className="text-xl font-bold mb-2">Live Emergency Alerts Map</h2>
-          <LiveSOSMap alerts={alerts} />
-        </div>
-
         {!showEmergency ? (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="emergency" className="flex items-center gap-2">
-                <Shield className="w-4 h-4" /> Emergency
-              </TabsTrigger>
-              <TabsTrigger value="contacts" className="flex items-center gap-2">
-                <Users className="w-4 h-4" /> Contacts
-              </TabsTrigger>
-              <TabsTrigger value="profile" className="flex items-center gap-2">
-                <Heart className="w-4 h-4" /> Profile
-              </TabsTrigger>
-              <TabsTrigger value="history" className="flex items-center gap-2">
-                <History className="w-4 h-4" /> History
-              </TabsTrigger>
-            </TabsList>
+          <div className="space-y-6">
+            {/* Live SOS Map */}
+            <h1 className="text-2xl font-bold mb-4">Live Emergency Alerts</h1>
+            <LiveSOSMap />
 
-            <TabsContent value="emergency">
-              {!alertsLoading && alerts.length > 0 && (
+            {/* Tabs for Emergency, Contacts, Profile, History */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="emergency" className="flex items-center gap-2">
+                  <Shield className="w-4 h-4" /> Emergency
+                </TabsTrigger>
+                <TabsTrigger value="contacts" className="flex items-center gap-2">
+                  <Users className="w-4 h-4" /> Contacts
+                </TabsTrigger>
+                <TabsTrigger value="profile" className="flex items-center gap-2">
+                  <Heart className="w-4 h-4" /> Profile
+                </TabsTrigger>
+                <TabsTrigger value="history" className="flex items-center gap-2">
+                  <History className="w-4 h-4" /> History
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="emergency">
+                {!alertsLoading && alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
                 <div className="mb-6">
-                  <ActiveAlerts alerts={alerts} />
+                  <Button
+                    onClick={handleQuickSOS}
+                    className="w-full h-32 text-3xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse"
+                    size="lg"
+                  >
+                    🚨 SOS
+                  </Button>
+                  <p className="text-center text-sm text-muted-foreground mt-2">
+                    Tap for instant emergency alert
+                  </p>
                 </div>
-              )}
+                <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
+              </TabsContent>
 
-              {/* Quick SOS Button */}
-              <div className="mb-6">
-                <Button
-                  onClick={handleQuickSOS}
-                  className="w-full h-32 text-3xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse"
-                  size="lg"
-                >
-                  🚨 SOS
-                </Button>
-                <p className="text-center text-sm text-muted-foreground mt-2">
-                  Tap for instant emergency alert
-                </p>
-              </div>
+              <TabsContent value="contacts">
+                <PersonalContacts userId={session.user.id} />
+              </TabsContent>
 
-              <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
-            </TabsContent>
+              <TabsContent value="profile">
+                <EmergencyProfile userId={session.user.id} />
+              </TabsContent>
 
-            <TabsContent value="contacts">
-              <PersonalContacts userId={session.user.id} />
-            </TabsContent>
-
-            <TabsContent value="profile">
-              <EmergencyProfile userId={session.user.id} />
-            </TabsContent>
-
-            <TabsContent value="history">
-              <AlertHistory userId={session.user.id} />
-            </TabsContent>
-          </Tabs>
+              <TabsContent value="history">
+                <AlertHistory userId={session.user.id} />
+              </TabsContent>
+            </Tabs>
+          </div>
         ) : (
           <div className="space-y-6">
-            {/* Active Emergency */}
             <div className="bg-primary text-primary-foreground p-6 rounded-lg shadow-lg">
               <h2 className="text-xl font-bold mb-2">Emergency Alert Active</h2>
-              <p className="mb-2"><strong>Type:</strong> {emergencyType}</p>
-              <p className="mb-4"><strong>Situation:</strong> {situation}</p>
+              <p className="mb-2">
+                <strong>Type:</strong> {emergencyType}
+              </p>
+              <p className="mb-4">
+                <strong>Situation:</strong> {situation}
+              </p>
               <button
                 onClick={handleBack}
                 className="bg-primary-foreground text-primary px-4 py-2 rounded-md font-semibold hover:opacity-90 transition-opacity"
@@ -275,7 +291,11 @@ const Index = () => {
               </button>
             </div>
 
-            {userLocation && <LocationMap location={userLocation} />}
+            {userLocation && (
+              <div className="bg-card rounded-lg shadow-lg overflow-hidden">
+                <LocationMap location={userLocation} />
+              </div>
+            )}
 
             <ContactList emergencyType={emergencyType} userLocation={userLocation} />
 
