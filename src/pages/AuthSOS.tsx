@@ -25,37 +25,45 @@ const AuthSOS = () => {
   const [signupFullName, setSignupFullName] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
 
+  // SOS alert form
+  const [emergencyType, setEmergencyType] = useState("");
+  const [situation, setSituation] = useState("");
+  const [submittingSOS, setSubmittingSOS] = useState(false);
+
+  // ----------------------
+  // AUTH EFFECTS
+  // ----------------------
   useEffect(() => {
-    // Check existing session
+    // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session) navigate("/");
+      if (session) navigate("/home");
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session) navigate("/");
+      if (session) navigate("/home");
     });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  // ----------------------
+  // LOGIN & SIGNUP
+  // ----------------------
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const result = authSchema.safeParse({ email: loginEmail, password: loginPassword });
     if (!result.success) {
       toast.error(result.error.errors[0].message);
       return;
     }
-
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
       email: result.data.email,
       password: result.data.password,
     });
-
     if (error) toast.error("Invalid email or password");
     else toast.success("Logged in successfully!");
     setLoading(false);
@@ -63,56 +71,81 @@ const AuthSOS = () => {
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const result = authSchema.safeParse({
       email: signupEmail,
       password: signupPassword,
       fullName: signupFullName,
       phoneNumber: signupPhone || undefined,
     });
-
     if (!result.success) {
       toast.error(result.error.errors[0].message);
       return;
     }
-
     setLoading(true);
     const redirectUrl = `${window.location.origin}/`;
-
     const { error } = await supabase.auth.signUp({
       email: result.data.email,
       password: result.data.password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: { full_name: result.data.fullName },
-      },
+      options: { emailRedirectTo: redirectUrl, data: { full_name: result.data.fullName } },
     });
-
     if (error) {
-      if (error.message.includes("already registered")) {
-        toast.error("This email is already registered. Please login instead.");
-      } else {
-        toast.error("Failed to create account. Please try again.");
-      }
+      toast.error(error.message.includes("already registered")
+        ? "This email is already registered. Please login."
+        : "Failed to create account. Please try again.");
     } else {
       toast.success("Account created successfully!");
-
       // Update profile with phone number
       if (result.data.phoneNumber) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          await supabase.from("profiles").update({
-            phone_number: result.data.phoneNumber
-          }).eq("id", user.id);
+          await supabase.from("profiles").update({ phone_number: result.data.phoneNumber }).eq("id", user.id);
         }
       }
     }
     setLoading(false);
   };
 
+  // ----------------------
+  // SOS ALERT SUBMISSION
+  // ----------------------
+  const handleSOSSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!session) {
+      toast.error("You must be logged in to send an emergency alert.");
+      return;
+    }
+    if (!emergencyType || !situation) {
+      toast.error("Please fill in all fields.");
+      return;
+    }
+    setSubmittingSOS(true);
+
+    const { data: user } = await supabase.auth.getUser();
+    const { error } = await supabase.from("emergency_alerts").insert([{
+      user_id: user?.id,
+      emergency_type: emergencyType,
+      situation,
+      latitude: 0, // replace with actual geolocation if needed
+      longitude: 0,
+      status: "active",
+      created_at: new Date().toISOString(),
+    }]);
+
+    if (error) toast.error("Failed to send SOS alert.");
+    else toast.success("Emergency alert sent!");
+
+    setEmergencyType("");
+    setSituation("");
+    setSubmittingSOS(false);
+  };
+
+  // ----------------------
+  // RENDER
+  // ----------------------
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
+        {/* Header */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
             <div className="bg-primary p-4 rounded-full">
@@ -121,10 +154,11 @@ const AuthSOS = () => {
           </div>
           <h1 className="text-3xl font-bold text-foreground mb-2">Emergency Response PH</h1>
           <p className="text-muted-foreground">
-            Sign in or create an account to access emergency services
+            Login or create an account to send emergency alerts.
           </p>
         </div>
 
+        {/* Auth Tabs */}
         <div className="bg-card rounded-lg shadow-lg p-6">
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -134,88 +168,45 @@ const AuthSOS = () => {
 
             <TabsContent value="login">
               <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email">Email</Label>
-                  <Input
-                    id="login-email"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="login-password">Password</Label>
-                  <Input
-                    id="login-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Logging in..." : "Login"}
-                </Button>
+                <Label>Email</Label>
+                <Input type="email" value={loginEmail} onChange={e => setLoginEmail(e.target.value)} required />
+                <Label>Password</Label>
+                <Input type="password" value={loginPassword} onChange={e => setLoginPassword(e.target.value)} required />
+                <Button type="submit" className="w-full" disabled={loading}>{loading ? "Logging in..." : "Login"}</Button>
               </form>
             </TabsContent>
 
             <TabsContent value="signup">
               <form onSubmit={handleSignup} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="signup-name">Full Name *</Label>
-                  <Input
-                    id="signup-name"
-                    type="text"
-                    placeholder="Juan Dela Cruz"
-                    value={signupFullName}
-                    onChange={(e) => setSignupFullName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email *</Label>
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={signupEmail}
-                    onChange={(e) => setSignupEmail(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-phone">Phone Number</Label>
-                  <Input
-                    id="signup-phone"
-                    type="tel"
-                    placeholder="+63 912 345 6789"
-                    value={signupPhone}
-                    onChange={(e) => setSignupPhone(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Password *</Label>
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={signupPassword}
-                    onChange={(e) => setSignupPassword(e.target.value)}
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground">At least 6 characters</p>
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? "Creating account..." : "Create Account"}
-                </Button>
+                <Label>Full Name *</Label>
+                <Input type="text" value={signupFullName} onChange={e => setSignupFullName(e.target.value)} required />
+                <Label>Email *</Label>
+                <Input type="email" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} required />
+                <Label>Phone Number</Label>
+                <Input type="tel" value={signupPhone} onChange={e => setSignupPhone(e.target.value)} />
+                <Label>Password *</Label>
+                <Input type="password" value={signupPassword} onChange={e => setSignupPassword(e.target.value)} required />
+                <Button type="submit" className="w-full" disabled={loading}>{loading ? "Creating account..." : "Sign Up"}</Button>
               </form>
             </TabsContent>
           </Tabs>
+
+          {/* SOS Alert Form */}
+          {session && (
+            <div className="mt-6 border-t border-muted-foreground pt-4">
+              <h2 className="text-lg font-semibold mb-2">Send SOS Alert</h2>
+              <form onSubmit={handleSOSSubmit} className="space-y-4">
+                <Label>Emergency Type</Label>
+                <Input value={emergencyType} onChange={e => setEmergencyType(e.target.value)} placeholder="Fire, Accident, Medical..." required />
+                <Label>Situation</Label>
+                <Input value={situation} onChange={e => setSituation(e.target.value)} placeholder="Describe your emergency..." required />
+                <Button type="submit" className="w-full" disabled={submittingSOS}>{submittingSOS ? "Sending..." : "Send SOS"}</Button>
+              </form>
+            </div>
+          )}
         </div>
 
+        {/* Quick Info */}
         <div className="mt-6 bg-accent/10 border border-accent/20 rounded-lg p-4 flex gap-3">
           <AlertCircle className="w-5 h-5 text-accent flex-shrink-0 mt-0.5" />
           <div className="text-sm text-muted-foreground">
