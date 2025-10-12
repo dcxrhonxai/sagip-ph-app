@@ -10,7 +10,7 @@ import { AdMob } from "@capacitor-community/admob";
 
 // ✅ Lazy-load pages/components
 const Index = lazy(() => import("./pages/Index"));
-const AuthSOS = lazy(() => import("./pages/AuthSOS"));
+const AuthSOS = lazy(() => import("./pages/AuthSOS")); // updated
 const NotFound = lazy(() => import("./pages/NotFound"));
 const VideoRecorder = lazy(() => import("./components/VideoRecorder"));
 
@@ -24,7 +24,7 @@ const pageVariants = {
 const App = () => {
   const [queryClient] = useState(() => new QueryClient());
 
-  // ✅ Initialize AdMob on native platforms
+  // Initialize AdMob safely on native only
   useEffect(() => {
     const initAdMob = async () => {
       if (Capacitor.isNativePlatform()) {
