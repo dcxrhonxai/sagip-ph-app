@@ -1,18 +1,19 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
-import { componentTagger } from "lovable-tagger";
+import { lazy, Suspense } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
-// https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  server: {
-    host: "::",
-    port: 8080,
-  },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
-  },
-}));
+// Dynamically import heavy components or route-based pages
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+
+function App() {
+  return (
+    <Router>
+      <Suspense fallback={<div>Loading...</div>}>
+        <Routes>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Routes>
+      </Suspense>
+    </Router>
+  );
+}
