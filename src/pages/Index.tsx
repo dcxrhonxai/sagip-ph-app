@@ -18,83 +18,42 @@ import { Capacitor } from "@capacitor/core";
 import { AdMob, BannerAdSize, BannerAdPosition } from "@capacitor-community/admob";
 
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import { motion } from "framer-motion";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { motion, AnimatePresence } from "framer-motion";
 
-export interface AlertMarker {
+// Default map icon fix for Leaflet
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
+  iconUrl: require("leaflet/dist/images/marker-icon.png"),
+  shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
+});
+
+interface Alert {
   id: string;
-  lat: number;
-  lng: number;
-  emergencyType: string;
+  emergency_type: string;
   situation: string;
-  createdAt: string;
+  latitude: number;
+  longitude: number;
+  created_at: string;
 }
 
-const Index = () => {
+interface Props {
+  session: Session;
+}
+
+const Index = ({ session }: Props) => {
   const navigate = useNavigate();
-  const [session, setSession] = useState<Session | null>(null);
-  const [isAuthChecked, setIsAuthChecked] = useState(false);
   const [showEmergency, setShowEmergency] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [emergencyType, setEmergencyType] = useState("");
   const [situation, setSituation] = useState("");
   const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("emergency");
-  const [alerts, setAlerts] = useState<AlertMarker[]>([]);
+
+  const [alerts, setAlerts] = useState<Alert[]>([]);
   const { sendNotifications } = useEmergencyNotifications();
-
-  // -------------------------------
-  // Auth check & redirect if not logged in
-  // -------------------------------
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setIsAuthChecked(true);
-      if (!session) navigate("/auth", { replace: true });
-    };
-    checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (!session) navigate("/auth", { replace: true });
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  // -------------------------------
-  // Real-time alerts subscription
-  // -------------------------------
-  useEffect(() => {
-    if (!session?.user?.id) return;
-
-    const channel = supabase
-      .channel(`realtime-emergency-${session.user.id}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "emergency_alerts" },
-        (payload) => {
-          const newAlert = payload.new as AlertMarker;
-          setAlerts((prev) => [...prev, newAlert]);
-        }
-      )
-      .subscribe();
-
-    // Load initial alerts
-    supabase
-      .from<AlertMarker>("emergency_alerts")
-      .select("*")
-      .order("createdAt", { ascending: true })
-      .then(({ data }) => {
-        if (data) setAlerts(data);
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [session?.user?.id]);
 
   // -------------------------------
   // Initialize AdMob (native only)
@@ -103,7 +62,10 @@ const Index = () => {
     const initAdMob = async () => {
       if (Capacitor.isNativePlatform()) {
         try {
-          await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: false });
+          await AdMob.initialize({
+            requestTrackingAuthorization: true,
+            initializeForTesting: false,
+          });
         } catch (err) {
           console.error("AdMob init failed:", err);
         }
@@ -113,25 +75,48 @@ const Index = () => {
   }, []);
 
   // -------------------------------
-  // Show banner ad on home tab only
+  // Load initial location & alerts
   // -------------------------------
   useEffect(() => {
-    const showBanner = async () => {
-      if (Capacitor.isNativePlatform() && activeTab === "emergency" && !showEmergency) {
-        try {
-          await AdMob.showBanner({
-            adId: "ca-app-pub-4211898333188674/1234567890",
-            adSize: BannerAdSize.BANNER,
-            position: BannerAdPosition.BOTTOM_CENTER,
-          });
-        } catch (err) {}
+    const loadInitialData = async () => {
+      // 1️⃣ Get user location
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          },
+          () => {
+            setUserLocation({ lat: 14.5995, lng: 120.9842 }); // Manila fallback
+            toast.warning("Using default location (Manila)");
+          }
+        );
       } else {
-        await AdMob.removeBanner();
+        setUserLocation({ lat: 14.5995, lng: 120.9842 });
       }
+
+      // 2️⃣ Load initial alerts
+      const { data } = await supabase.from("emergency_alerts").select("*").order("created_at", { ascending: false }).limit(50);
+      if (data) setAlerts(data);
     };
-    showBanner();
-    return () => AdMob.removeBanner().catch(() => {});
-  }, [activeTab, showEmergency]);
+
+    loadInitialData();
+  }, []);
+
+  // -------------------------------
+  // Real-time subscription
+  // -------------------------------
+  useEffect(() => {
+    const subscription = supabase
+      .from("emergency_alerts")
+      .on("INSERT", (payload) => {
+        setAlerts((prev) => [payload.new, ...prev]); // newest first
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeSubscription(subscription);
+    };
+  }, []);
 
   // -------------------------------
   // Quick SOS handler
@@ -139,79 +124,53 @@ const Index = () => {
   const handleQuickSOS = async () => {
     const quickType = "🚨 EMERGENCY - SOS";
     const quickSituation = "Quick SOS activated - Immediate help needed";
-    handleEmergencyClick(quickType, quickSituation);
-  };
 
-  const handleEmergencyClick = async (type: string, description: string, evidenceFiles?: any[]) => {
-    setEmergencyType(type);
-    setSituation(description);
-    setShowEmergency(true);
-
-    if (!session?.user) return;
-
-    const location = userLocation ?? { lat: 14.5995, lng: 120.9842 };
-    setUserLocation(location);
-
+    if (!userLocation || !session?.user) return;
     const { data, error } = await supabase
       .from("emergency_alerts")
       .insert({
         user_id: session.user.id,
-        emergency_type: type,
-        situation: description,
-        latitude: location.lat,
-        longitude: location.lng,
-        evidence_files: evidenceFiles || [],
+        emergency_type: quickType,
+        situation: quickSituation,
+        latitude: userLocation.lat,
+        longitude: userLocation.lng,
       })
       .select()
       .single();
 
-    if (data) setCurrentAlertId(data.id);
+    if (data) {
+      setCurrentAlertId(data.id);
+      setEmergencyType(quickType);
+      setSituation(quickSituation);
 
-    if (error) console.error(error);
+      const { data: contacts } = await supabase
+        .from("personal_contacts")
+        .select("name, phone")
+        .eq("user_id", session.user.id);
 
-    // Notify personal contacts
-    const { data: contacts } = await supabase
-      .from("personal_contacts")
-      .select("name, phone")
-      .eq("user_id", session.user.id);
-
-    if (contacts && contacts.length > 0) {
-      const formattedContacts = contacts.map((c) => ({
-        name: c.name,
-        phone: c.phone,
-        email: session.user.email ?? undefined,
-      }));
-
-      await sendNotifications(
-        data.id,
-        formattedContacts,
-        type,
-        description,
-        location,
-        evidenceFiles?.map((f) => ({ url: f.url, type: f.type }))
-      );
+      if (contacts && contacts.length > 0) {
+        await sendNotifications(
+          data.id,
+          contacts.map((c) => ({ name: c.name, phone: c.phone })),
+          quickType,
+          quickSituation,
+          userLocation
+        );
+      }
     }
+    if (error) console.error(error);
   };
 
   // -------------------------------
-  // Wait for auth check before rendering
+  // Pin drop animation
   // -------------------------------
-  if (!isAuthChecked) return null;
+  const markerVariants = {
+    initial: { y: -50, opacity: 0 },
+    animate: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 30 } },
+  };
 
   // -------------------------------
-  // Leaflet default icon
-  // -------------------------------
-  const defaultIcon = L.icon({
-    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-  });
-
-  const newestAlertId = alerts.length > 0 ? alerts[alerts.length - 1].id : null;
-
-  // -------------------------------
-  // Render /home page
+  // Render
   // -------------------------------
   return (
     <div className="min-h-screen bg-background">
@@ -230,121 +189,92 @@ const Index = () => {
             size="icon"
             onClick={async () => {
               await supabase.auth.signOut();
+              navigate("/auth");
               toast.success("Logged out successfully");
             }}
-            className="text-primary-foreground hover:bg-primary-foreground/10"
           >
             <LogOut className="w-5 h-5" />
           </Button>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-6 max-w-3xl">
-        {!showEmergency ? (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="emergency" className="flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                Emergency
-              </TabsTrigger>
-              <TabsTrigger value="contacts" className="flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                Contacts
-              </TabsTrigger>
-              <TabsTrigger value="profile" className="flex items-center gap-2">
-                <Heart className="w-4 h-4" />
-                Profile
-              </TabsTrigger>
-              <TabsTrigger value="history" className="flex items-center gap-2">
-                <History className="w-4 h-4" />
-                History
-              </TabsTrigger>
-            </TabsList>
+      {/* Main */}
+      <main className="container mx-auto px-4 py-6 max-w-3xl space-y-6">
+        {/* Quick SOS */}
+        <Button
+          onClick={handleQuickSOS}
+          className="w-full h-32 text-3xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse"
+        >
+          🚨 SOS
+        </Button>
 
-            <TabsContent value="emergency">
-              {alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
-              <Button
-                onClick={handleQuickSOS}
-                className="w-full h-24 text-2xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse mb-4"
-              >
-                SOS
-              </Button>
-              <EmergencyForm onEmergencyClick={handleEmergencyClick} userId={session.user.id} />
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="emergency" className="flex items-center gap-2">
+              <Shield className="w-4 h-4" /> Emergency
+            </TabsTrigger>
+            <TabsTrigger value="contacts" className="flex items-center gap-2">
+              <Users className="w-4 h-4" /> Contacts
+            </TabsTrigger>
+            <TabsTrigger value="profile" className="flex items-center gap-2">
+              <Heart className="w-4 h-4" /> Profile
+            </TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2">
+              <History className="w-4 h-4" /> History
+            </TabsTrigger>
+          </TabsList>
 
-              {/* Animated Live Map */}
+          {/* Emergency Tab */}
+          <TabsContent value="emergency" className="space-y-4">
+            {alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
+
+            <EmergencyForm onEmergencyClick={() => {}} userId={session.user.id} />
+
+            {userLocation && (
               <MapContainer
-                center={userLocation ?? { lat: 14.5995, lng: 120.9842 }}
+                center={[userLocation.lat, userLocation.lng]}
                 zoom={13}
-                style={{ width: "100%", height: "500px", borderRadius: 12 }}
+                className="w-full h-[500px] rounded-lg shadow-lg"
               >
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-
-                {alerts.map((alert, index) => {
-                  const isNewest = alert.id === newestAlertId;
-                  return (
-                    <Marker key={alert.id} position={[alert.lat, alert.lng]} icon={defaultIcon}>
-                      <Popup>
-                        <strong>{alert.emergencyType}</strong>
-                        <br />
-                        {alert.situation}
-                        <br />
-                        {new Date(alert.createdAt).toLocaleTimeString()}
-                      </Popup>
-
-                      {/* Pin Drop Animation */}
-                      <motion.div
-                        initial={{ y: -50, scale: 0.5, opacity: 0 }}
-                        animate={{ y: 0, scale: 1, opacity: 1 }}
-                        transition={{ duration: 0.5, delay: index * 0.1, ease: "easeOut" }}
-                        style={{
-                          position: "absolute",
-                          width: 25,
-                          height: 41,
-                          transform: "translate(-50%, -100%)",
-                          pointerEvents: "none",
-                          zIndex: 1000,
-                        }}
-                      >
-                        {isNewest && (
-                          <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: [0, 1.2, 1] }}
-                            transition={{ duration: 1, repeat: Infinity, repeatType: "loop" }}
-                            style={{
-                              position: "absolute",
-                              width: 40,
-                              height: 40,
-                              borderRadius: "50%",
-                              backgroundColor: "rgba(255,0,0,0.3)",
-                              transform: "translate(-50%, -50%)",
-                              pointerEvents: "none",
-                              zIndex: 999,
-                            }}
-                          />
-                        )}
-                      </motion.div>
-                    </Marker>
-                  );
-                })}
+                <AnimatePresence>
+                  {alerts.map((alert, index) => (
+                    <motion.div
+                      key={alert.id}
+                      variants={markerVariants}
+                      initial="initial"
+                      animate="animate"
+                      exit={{ opacity: 0 }}
+                    >
+                      <Marker position={[alert.latitude, alert.longitude]}>
+                        <Popup>
+                          <strong>{alert.emergency_type}</strong>
+                          <br />
+                          {alert.situation}
+                        </Popup>
+                      </Marker>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               </MapContainer>
-            </TabsContent>
+            )}
+          </TabsContent>
 
-            <TabsContent value="contacts">
-              <PersonalContacts userId={session.user.id} />
-            </TabsContent>
+          {/* Contacts */}
+          <TabsContent value="contacts">
+            <PersonalContacts userId={session.user.id} />
+          </TabsContent>
 
-            <TabsContent value="profile">
-              <EmergencyProfile userId={session.user.id} />
-            </TabsContent>
+          {/* Profile */}
+          <TabsContent value="profile">
+            <EmergencyProfile userId={session.user.id} />
+          </TabsContent>
 
-            <TabsContent value="history">
-              <AlertHistory userId={session.user.id} />
-            </TabsContent>
-          </Tabs>
-        ) : (
-          <div>{/* Active emergency view */}</div>
-        )}
+          {/* History */}
+          <TabsContent value="history">
+            <AlertHistory userId={session.user.id} />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
