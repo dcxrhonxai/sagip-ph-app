@@ -80,3 +80,4 @@ dist-ssr
 .env
 supabase/functions/**/.env
 supabase/functions/**/.env.*
+supabase/functions/send-emergency-email/run-emergency.ps1
