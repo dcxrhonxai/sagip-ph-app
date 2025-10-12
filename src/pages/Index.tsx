@@ -18,39 +18,21 @@ import type { Session } from "@supabase/supabase-js";
 import { Capacitor } from "@capacitor/core";
 import { AdMob, BannerAdSize, BannerAdPosition } from "@capacitor-community/admob";
 
-const Index = () => {
+interface IndexProps {
+  session: Session;
+}
+
+const Index = ({ session }: IndexProps) => {
   const navigate = useNavigate();
-  const [session, setSession] = useState<Session | null>(null);
-  const [isAuthChecked, setIsAuthChecked] = useState(false); // ✅ Flag to avoid flash
   const [showEmergency, setShowEmergency] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [emergencyType, setEmergencyType] = useState("");
   const [situation, setSituation] = useState("");
   const [currentAlertId, setCurrentAlertId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("emergency");
-  const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
+
+  const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session.user.id);
   const { sendNotifications } = useEmergencyNotifications();
-
-  // -------------------------------
-  // Check auth and redirect if not logged in
-  // -------------------------------
-  useEffect(() => {
-    const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setIsAuthChecked(true);
-      if (!session) navigate("/auth", { replace: true });
-    };
-
-    checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (!session) navigate("/auth", { replace: true });
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
 
   // -------------------------------
   // Initialize AdMob (native only)
@@ -60,7 +42,6 @@ const Index = () => {
       if (Capacitor.isNativePlatform()) {
         try {
           await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: false });
-          console.log("✅ AdMob initialized on native platform");
         } catch (err) {
           console.error("AdMob init failed:", err);
         }
@@ -70,7 +51,7 @@ const Index = () => {
   }, []);
 
   // -------------------------------
-  // Show banner ad only on home tab
+  // Show banner ad on emergency tab
   // -------------------------------
   useEffect(() => {
     const showBanner = async () => {
@@ -92,14 +73,6 @@ const Index = () => {
     return () => AdMob.removeBanner().catch(() => {});
   }, [activeTab, showEmergency]);
 
-  // -------------------------------
-  // Wait for auth check to finish before rendering
-  // -------------------------------
-  if (!isAuthChecked) return null;
-
-  // -------------------------------
-  // Render page
-  // -------------------------------
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -118,6 +91,7 @@ const Index = () => {
             onClick={async () => {
               await supabase.auth.signOut();
               toast.success("Logged out successfully");
+              navigate("/auth", { replace: true });
             }}
             className="text-primary-foreground hover:bg-primary-foreground/10"
           >
@@ -132,27 +106,24 @@ const Index = () => {
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="emergency" className="flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                Emergency
+                <Shield className="w-4 h-4" /> Emergency
               </TabsTrigger>
               <TabsTrigger value="contacts" className="flex items-center gap-2">
-                <Users className="w-4 h-4" />
-                Contacts
+                <Users className="w-4 h-4" /> Contacts
               </TabsTrigger>
               <TabsTrigger value="profile" className="flex items-center gap-2">
-                <Heart className="w-4 h-4" />
-                Profile
+                <Heart className="w-4 h-4" /> Profile
               </TabsTrigger>
               <TabsTrigger value="history" className="flex items-center gap-2">
-                <History className="w-4 h-4" />
-                History
+                <History className="w-4 h-4" /> History
               </TabsTrigger>
             </TabsList>
 
+            {/* Emergency Tab */}
             <TabsContent value="emergency">
               {!alertsLoading && alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
               <EmergencyForm onEmergencyClick={() => {}} userId={session.user.id} />
-              {session && <LocationMap />} {/* Live SOS map goes here */}
+              {userLocation && <LocationMap location={userLocation} />}
             </TabsContent>
 
             <TabsContent value="contacts">
@@ -168,7 +139,7 @@ const Index = () => {
             </TabsContent>
           </Tabs>
         ) : (
-          <div> {/* Active emergency UI (map + contacts) */} </div>
+          <div>{/* Active emergency UI (map + contacts) */}</div>
         )}
       </main>
     </div>
