@@ -24,12 +24,7 @@ const LocationMap = ({ initialLocation, initialAlerts }: LocationMapProps) => {
   // Track the newest alert ID to pulse/highlight
   const newestAlertId = alerts.length > 0 ? alerts[alerts.length - 1].id : null;
 
-  // Handle animated pin drop for new alerts
-  useEffect(() => {
-    setAlerts(initialAlerts);
-  }, [initialAlerts]);
-
-  // Default Leaflet icon fix
+  // Default Leaflet icon
   const defaultIcon = L.icon({
     iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
     shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
@@ -44,15 +39,11 @@ const LocationMap = ({ initialLocation, initialAlerts }: LocationMapProps) => {
     <MapContainer center={mapCenter} zoom={13} style={{ width: "100%", height: "500px" }}>
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-      {alerts.map((alert) => {
+      {alerts.map((alert, index) => {
         const isNewest = alert.id === newestAlertId;
 
         return (
-          <Marker
-            key={alert.id}
-            position={[alert.lat, alert.lng]}
-            icon={defaultIcon}
-          >
+          <Marker key={alert.id} position={[alert.lat, alert.lng]} icon={defaultIcon}>
             <Popup>
               <strong>{alert.emergencyType}</strong>
               <br />
@@ -61,23 +52,42 @@ const LocationMap = ({ initialLocation, initialAlerts }: LocationMapProps) => {
               {new Date(alert.createdAt).toLocaleTimeString()}
             </Popup>
 
-            {isNewest && (
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: [0, 1.2, 1] }}
-                transition={{ duration: 1, repeat: Infinity, repeatType: "loop" }}
-                style={{
-                  position: "absolute",
-                  width: 40,
-                  height: 40,
-                  borderRadius: "50%",
-                  backgroundColor: "rgba(255,0,0,0.3)",
-                  transform: "translate(-50%, -50%)",
-                  pointerEvents: "none",
-                  zIndex: 1000,
-                }}
-              />
-            )}
+            {/* Pin Drop Animation */}
+            <motion.div
+              initial={{ y: -50, scale: 0.5, opacity: 0 }}
+              animate={{ y: 0, scale: 1, opacity: 1 }}
+              transition={{
+                duration: 0.5,
+                delay: index * 0.1, // stagger pins
+                ease: "easeOut",
+              }}
+              style={{
+                position: "absolute",
+                width: 25,
+                height: 41,
+                transform: "translate(-50%, -100%)",
+                pointerEvents: "none",
+                zIndex: 1000,
+              }}
+            >
+              {isNewest && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: [0, 1.2, 1] }}
+                  transition={{ duration: 1, repeat: Infinity, repeatType: "loop" }}
+                  style={{
+                    position: "absolute",
+                    width: 40,
+                    height: 40,
+                    borderRadius: "50%",
+                    backgroundColor: "rgba(255,0,0,0.3)",
+                    transform: "translate(-50%, -50%)",
+                    pointerEvents: "none",
+                    zIndex: 999,
+                  }}
+                />
+              )}
+            </motion.div>
           </Marker>
         );
       })}
