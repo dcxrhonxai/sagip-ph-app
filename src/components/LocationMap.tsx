@@ -1,96 +1,86 @@
 import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
-import { motion } from "framer-motion";
-import "leaflet/dist/leaflet.css";
+import { motion, AnimatePresence } from "framer-motion";
 
-export interface AlertMarker {
-  id: string;
-  lat: number;
-  lng: number;
-  emergencyType: string;
-  situation: string;
-  createdAt: string;
-}
+// Custom emergency icon
+const emergencyIcon = new L.Icon({
+  iconUrl: "/icons/marker-red.png",
+  iconSize: [30, 40],
+  iconAnchor: [15, 40],
+  popupAnchor: [0, -40],
+});
 
-interface LocationMapProps {
-  initialLocation: { lat: number; lng: number } | [number, number];
-  initialAlerts: AlertMarker[];
-}
+const AnimatedMarkers = ({ alerts }: { alerts: any[] }) => {
+  const [displayedAlerts, setDisplayedAlerts] = useState<any[]>([]);
 
-const LocationMap = ({ initialLocation, initialAlerts }: LocationMapProps) => {
-  const [alerts, setAlerts] = useState<AlertMarker[]>(initialAlerts);
-
-  // Track the newest alert ID to pulse/highlight
-  const newestAlertId = alerts.length > 0 ? alerts[alerts.length - 1].id : null;
-
-  // Default Leaflet icon
-  const defaultIcon = L.icon({
-    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-  });
-
-  const mapCenter =
-    Array.isArray(initialLocation) ? { lat: initialLocation[0], lng: initialLocation[1] } : initialLocation;
+  useEffect(() => {
+    // Animate each new alert with delay
+    alerts.forEach((alert, index) => {
+      if (!displayedAlerts.find((a) => a.id === alert.id)) {
+        setTimeout(() => {
+          setDisplayedAlerts((prev) => [...prev, alert]);
+        }, index * 150); // staggered entry: 150ms per pin
+      }
+    });
+  }, [alerts, displayedAlerts]);
 
   return (
-    <MapContainer center={mapCenter} zoom={13} style={{ width: "100%", height: "500px" }}>
+    <AnimatePresence>
+      {displayedAlerts.map((alert, index) => (
+        <Marker
+          key={alert.id}
+          position={[alert.latitude, alert.longitude]}
+          icon={emergencyIcon}
+          eventHandlers={{
+            add: (e) => {
+              // optional: do something when marker added
+            },
+          }}
+        >
+          <Popup>
+            <div className="space-y-1">
+              <p className="font-bold">{alert.emergency_type}</p>
+              <p>{alert.situation}</p>
+              <p className="text-xs text-gray-500">Reported by: {alert.user_id}</p>
+            </div>
+          </Popup>
+        </Marker>
+      ))}
+    </AnimatePresence>
+  );
+};
+
+const LocationMap = ({ alerts, initialLocation }: { alerts: any[]; initialLocation: { lat: number; lng: number } }) => {
+  const newestAlert = alerts[alerts.length - 1];
+
+  return (
+    <MapContainer center={initialLocation} zoom={15} scrollWheelZoom={true} className="w-full h-96 rounded-lg shadow-md">
       <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
 
-      {alerts.map((alert, index) => {
-        const isNewest = alert.id === newestAlertId;
+      {/* Animate all pins dropping in */}
+      <AnimatedMarkers alerts={alerts} />
 
-        return (
-          <Marker key={alert.id} position={[alert.lat, alert.lng]} icon={defaultIcon}>
-            <Popup>
-              <strong>{alert.emergencyType}</strong>
-              <br />
-              {alert.situation}
-              <br />
-              {new Date(alert.createdAt).toLocaleTimeString()}
-            </Popup>
-
-            {/* Pin Drop Animation */}
-            <motion.div
-              initial={{ y: -50, scale: 0.5, opacity: 0 }}
-              animate={{ y: 0, scale: 1, opacity: 1 }}
-              transition={{
-                duration: 0.5,
-                delay: index * 0.1, // stagger pins
-                ease: "easeOut",
-              }}
-              style={{
-                position: "absolute",
-                width: 25,
-                height: 41,
-                transform: "translate(-50%, -100%)",
-                pointerEvents: "none",
-                zIndex: 1000,
-              }}
-            >
-              {isNewest && (
-                <motion.div
-                  initial={{ scale: 0 }}
-                  animate={{ scale: [0, 1.2, 1] }}
-                  transition={{ duration: 1, repeat: Infinity, repeatType: "loop" }}
-                  style={{
-                    position: "absolute",
-                    width: 40,
-                    height: 40,
-                    borderRadius: "50%",
-                    backgroundColor: "rgba(255,0,0,0.3)",
-                    transform: "translate(-50%, -50%)",
-                    pointerEvents: "none",
-                    zIndex: 999,
-                  }}
-                />
-              )}
-            </motion.div>
-          </Marker>
-        );
-      })}
+      {/* Highlight newest pin */}
+      {newestAlert && (
+        <Marker
+          position={[newestAlert.latitude, newestAlert.longitude]}
+          icon={emergencyIcon}
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: [0, 1.2, 1], rotate: [0, 10, -10, 0] }}
+            transition={{ duration: 0.6, repeat: Infinity, repeatType: "reverse" }}
+          />
+          <Popup>
+            <div className="space-y-1">
+              <p className="font-bold">{newestAlert.emergency_type}</p>
+              <p>{newestAlert.situation}</p>
+              <p className="text-xs text-gray-500">Newest alert</p>
+            </div>
+          </Popup>
+        </Marker>
+      )}
     </MapContainer>
   );
 };
