@@ -1,19 +1,17 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path from "path";
 
-// Dynamically import heavy components or route-based pages
-const DashboardPage = lazy(() => import('./pages/DashboardPage'));
-const SettingsPage = lazy(() => import('./pages/SettingsPage'));
-
-function App() {
-  return (
-    <Router>
-      <Suspense fallback={<div>Loading...</div>}>
-        <Routes>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-        </Routes>
-      </Suspense>
-    </Router>
-  );
-}
+// ✅ Proper Vite config (no JSX or components here)
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  build: {
+    outDir: "dist",
+    sourcemap: false,
+  },
+});
