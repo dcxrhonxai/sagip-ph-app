@@ -8,12 +8,12 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Capacitor } from "@capacitor/core";
 import { AdMob } from "@capacitor-community/admob";
 
-// ✅ Lazy-load pages/components
+// ✅ Lazy-loaded pages
 const AuthSOS = lazy(() => import("./pages/AuthSOS"));
 const Home = lazy(() => import("./pages/Index")); // Updated Index page with live SOS map
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-// ✅ Page animation variants
+// ✅ Animation variants
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
@@ -23,6 +23,7 @@ const pageVariants = {
 const App = () => {
   const [queryClient] = useState(() => new QueryClient());
   const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true); // Prevent rendering until auth is checked
 
   // -------------------------------
   // Initialize AdMob (native only)
@@ -39,22 +40,24 @@ const App = () => {
         } catch (error) {
           console.error("❌ AdMob initialization failed:", error);
         }
-      } else {
-        console.log("ℹ️ Skipping AdMob initialization (web build)");
       }
     };
     initAdMob();
   }, []);
 
   // -------------------------------
-  // Supabase session check for seamless auth
+  // Supabase session check
   // -------------------------------
   useEffect(() => {
     import("@/integrations/supabase/client").then(({ supabase }) => {
-      // Initial session
-      supabase.auth.getSession().then(({ data: { session } }) => setSession(session));
+      const checkSession = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        setLoading(false);
+      };
 
-      // Auth state listener
+      checkSession();
+
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
         setSession(session);
       });
@@ -63,6 +66,17 @@ const App = () => {
     });
   }, []);
 
+  // -------------------------------
+  // Loading fallback before auth resolved
+  // -------------------------------
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-gray-500">
+        Loading...
+      </div>
+    );
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -70,7 +84,7 @@ const App = () => {
         <Sonner />
 
         <Router>
-          <Suspense fallback={<div className="text-center mt-10 text-gray-500">Loading...</div>}>
+          <Suspense fallback={<div className="text-center mt-10 text-gray-500">Loading page...</div>}>
             <AnimatePresence mode="wait">
               <Routes>
                 {/* Redirect root to /home */}
@@ -93,20 +107,24 @@ const App = () => {
                   }
                 />
 
-                {/* Home Page */}
+                {/* Home Page - protected */}
                 <Route
                   path="/home"
                   element={
-                    <motion.div
-                      key="home"
-                      initial="initial"
-                      animate="animate"
-                      exit="exit"
-                      variants={pageVariants}
-                      transition={{ duration: 0.3, ease: "easeInOut" }}
-                    >
-                      <Home />
-                    </motion.div>
+                    session ? (
+                      <motion.div
+                        key="home"
+                        initial="initial"
+                        animate="animate"
+                        exit="exit"
+                        variants={pageVariants}
+                        transition={{ duration: 0.3, ease: "easeInOut" }}
+                      >
+                        <Home />
+                      </motion.div>
+                    ) : (
+                      <Navigate to="/auth" replace />
+                    )
                   }
                 />
 
