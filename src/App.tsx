@@ -6,14 +6,15 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Capacitor } from "@capacitor/core";
-import { AdMob } from "@capacitor-community/admob";
+import { AdMob, BannerAdSize, BannerAdPosition } from "@capacitor-community/admob";
+import { supabase } from "@/integrations/supabase/client";
 
 // ✅ Lazy-loaded pages
 const AuthSOS = lazy(() => import("./pages/AuthSOS"));
-const Home = lazy(() => import("./pages/Index")); // Updated Index page with live SOS map
+const Home = lazy(() => import("./pages/Index")); // Updated Index with live SOS map
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-// ✅ Animation variants
+// ✅ Page animation variants
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
@@ -23,7 +24,7 @@ const pageVariants = {
 const App = () => {
   const [queryClient] = useState(() => new QueryClient());
   const [session, setSession] = useState<any>(null);
-  const [loading, setLoading] = useState(true); // Prevent rendering until auth is checked
+  const [isAuthChecked, setIsAuthChecked] = useState(false); // ✅ prevent flashes
 
   // -------------------------------
   // Initialize AdMob (native only)
@@ -32,13 +33,10 @@ const App = () => {
     const initAdMob = async () => {
       if (Capacitor.isNativePlatform()) {
         try {
-          await AdMob.initialize({
-            requestTrackingAuthorization: true,
-            initializeForTesting: false,
-          });
-          console.log("✅ AdMob initialized successfully");
-        } catch (error) {
-          console.error("❌ AdMob initialization failed:", error);
+          await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: false });
+          console.log("✅ AdMob initialized");
+        } catch (err) {
+          console.error("❌ AdMob init failed", err);
         }
       }
     };
@@ -46,35 +44,29 @@ const App = () => {
   }, []);
 
   // -------------------------------
-  // Supabase session check
+  // Check auth on app load
   // -------------------------------
   useEffect(() => {
-    import("@/integrations/supabase/client").then(({ supabase }) => {
-      const checkSession = async () => {
-        const { data: { session } } = await supabase.auth.getSession();
-        setSession(session);
-        setLoading(false);
-      };
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      setIsAuthChecked(true);
+    };
 
-      checkSession();
+    checkAuth();
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        setSession(session);
-      });
-
-      return () => subscription.unsubscribe();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
     });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   // -------------------------------
-  // Loading fallback before auth resolved
+  // Render fallback if auth not yet checked
   // -------------------------------
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-gray-500">
-        Loading...
-      </div>
-    );
+  if (!isAuthChecked) {
+    return <div className="text-center mt-10 text-gray-500">Loading app...</div>;
   }
 
   return (
@@ -82,7 +74,6 @@ const App = () => {
       <TooltipProvider>
         <Toaster />
         <Sonner />
-
         <Router>
           <Suspense fallback={<div className="text-center mt-10 text-gray-500">Loading page...</div>}>
             <AnimatePresence mode="wait">
@@ -90,7 +81,7 @@ const App = () => {
                 {/* Redirect root to /home */}
                 <Route path="/" element={<Navigate to="/home" replace />} />
 
-                {/* Auth Page */}
+                {/* Auth page */}
                 <Route
                   path="/auth"
                   element={
@@ -107,7 +98,7 @@ const App = () => {
                   }
                 />
 
-                {/* Home Page - protected */}
+                {/* Home page - redirects to /auth if not logged in */}
                 <Route
                   path="/home"
                   element={
@@ -120,7 +111,7 @@ const App = () => {
                         variants={pageVariants}
                         transition={{ duration: 0.3, ease: "easeInOut" }}
                       >
-                        <Home />
+                        <Home session={session} />
                       </motion.div>
                     ) : (
                       <Navigate to="/auth" replace />
