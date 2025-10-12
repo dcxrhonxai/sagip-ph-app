@@ -8,11 +8,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Capacitor } from "@capacitor/core";
 import { AdMob } from "@capacitor-community/admob";
 
-// ✅ Lazy-load pages/components
+// ✅ Lazy-loaded pages/components
+const AuthSOS = lazy(() => import("./pages/AuthSOS"));
 const Index = lazy(() => import("./pages/Index"));
-const AuthSOS = lazy(() => import("./pages/AuthSOS")); // new GPS-enabled AuthSOS
 const NotFound = lazy(() => import("./pages/NotFound"));
-const VideoRecorder = lazy(() => import("./components/VideoRecorder"));
 
 // ✅ Page animation variants
 const pageVariants = {
@@ -24,21 +23,16 @@ const pageVariants = {
 const App = () => {
   const [queryClient] = useState(() => new QueryClient());
 
-  // Initialize AdMob safely on native only
+  // Initialize AdMob safely on native
   useEffect(() => {
     const initAdMob = async () => {
       if (Capacitor.isNativePlatform()) {
         try {
-          await AdMob.initialize({
-            requestTrackingAuthorization: true,
-            initializeForTesting: false,
-          });
-          console.log("✅ AdMob initialized successfully");
-        } catch (error) {
-          console.error("❌ AdMob initialization failed:", error);
+          await AdMob.initialize({ requestTrackingAuthorization: true, initializeForTesting: false });
+          console.log("✅ AdMob initialized");
+        } catch (err) {
+          console.error("AdMob init failed:", err);
         }
-      } else {
-        console.log("ℹ️ Skipping AdMob initialization (web build)");
       }
     };
     initAdMob();
@@ -54,27 +48,10 @@ const App = () => {
           <Suspense fallback={<div className="text-center mt-10 text-gray-500">Loading...</div>}>
             <AnimatePresence mode="wait">
               <Routes>
-                {/* Redirect root to /home */}
+                {/* Root redirects to /home */}
                 <Route path="/" element={<Navigate to="/home" replace />} />
 
-                {/* Home Page */}
-                <Route
-                  path="/home"
-                  element={
-                    <motion.div
-                      key="home"
-                      initial="initial"
-                      animate="animate"
-                      exit="exit"
-                      variants={pageVariants}
-                      transition={{ duration: 0.3, ease: "easeInOut" }}
-                    >
-                      <Index />
-                    </motion.div>
-                  }
-                />
-
-                {/* AuthSOS Page */}
+                {/* Auth page */}
                 <Route
                   path="/auth"
                   element={
@@ -91,24 +68,24 @@ const App = () => {
                   }
                 />
 
-                {/* Video Recorder */}
+                {/* Home page with live SOS map */}
                 <Route
-                  path="/record"
+                  path="/home"
                   element={
                     <motion.div
-                      key="record"
+                      key="home"
                       initial="initial"
                       animate="animate"
                       exit="exit"
                       variants={pageVariants}
                       transition={{ duration: 0.3, ease: "easeInOut" }}
                     >
-                      <VideoRecorder />
+                      <Index />
                     </motion.div>
                   }
                 />
 
-                {/* Catch-All 404 */}
+                {/* Catch-all 404 */}
                 <Route
                   path="*"
                   element={
