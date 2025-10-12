@@ -16,6 +16,8 @@ import { toast } from "sonner";
 import { useRealtimeAlerts } from "@/hooks/useRealtimeAlerts";
 import { useEmergencyNotifications } from "@/hooks/useEmergencyNotifications";
 import type { Session } from "@supabase/supabase-js";
+import { Capacitor } from "@capacitor/core";
+import { AdMob, BannerAdSize, BannerAdPosition } from "@capacitor-community/admob";
 
 export interface EmergencyContact {
   id: string;
@@ -38,20 +40,58 @@ const Index = () => {
   const { alerts, isLoading: alertsLoading } = useRealtimeAlerts(session?.user?.id);
   const { sendNotifications } = useEmergencyNotifications();
 
+  // ✅ Initialize AdMob safely (native only)
   useEffect(() => {
-    // Check auth
+    const initAdMob = async () => {
+      if (Capacitor.isNativePlatform()) {
+        try {
+          await AdMob.initialize({
+            requestTrackingAuthorization: true,
+            initializeForTesting: false,
+          });
+          console.log("✅ AdMob initialized on native platform");
+        } catch (err) {
+          console.error("AdMob init failed:", err);
+        }
+      }
+    };
+    initAdMob();
+  }, []);
+
+  // ✅ Show banner ad only on the home tab (no violations)
+  useEffect(() => {
+    const showBanner = async () => {
+      if (Capacitor.isNativePlatform() && activeTab === "emergency" && !showEmergency) {
+        try {
+          await AdMob.showBanner({
+            adId: "ca-app-pub-4211898333188674/1234567890", // Banner Ad Unit
+            adSize: BannerAdSize.BANNER,
+            position: BannerAdPosition.BOTTOM_CENTER,
+          });
+        } catch (error) {
+          console.warn("Banner error:", error);
+        }
+      } else {
+        await AdMob.removeBanner();
+      }
+    };
+    showBanner();
+
+    return () => {
+      AdMob.removeBanner().catch(() => {});
+    };
+  }, [activeTab, showEmergency]);
+
+  useEffect(() => {
+    // Auth check
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (!session) {
-        navigate("/auth");
-      }
+      if (!session) navigate("/auth");
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (!session) {
-        navigate("/auth");
-      }
+      if (!session) navigate("/auth");
     });
 
     return () => subscription.unsubscribe();
@@ -67,21 +107,16 @@ const Index = () => {
     setEmergencyType(type);
     setSituation(description);
     setShowEmergency(true);
-    
-    // Get user's location
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
-          const location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
+          const location = { lat: position.coords.latitude, lng: position.coords.longitude };
           setUserLocation(location);
 
-          // Save alert to database
           if (session?.user) {
             const { data, error } = await supabase
-              .from('emergency_alerts')
+              .from("emergency_alerts")
               .insert({
                 user_id: session.user.id,
                 emergency_type: type,
@@ -95,71 +130,51 @@ const Index = () => {
 
             if (data) {
               setCurrentAlertId(data.id);
-
-              // Get user's emergency contacts
               const { data: contacts } = await supabase
                 .from("personal_contacts")
                 .select("name, phone")
                 .eq("user_id", session.user.id);
 
               if (contacts && contacts.length > 0) {
-                // Get profile for email if available
-                const { data: profile } = await supabase
-                  .from("profiles")
-                  .select("full_name")
-                  .eq("id", session.user.id)
-                  .single();
-
-                // Format contacts with email if they provided it
-                const formattedContacts = contacts.map(c => ({
+                const formattedContacts = contacts.map((c) => ({
                   name: c.name,
                   phone: c.phone,
                   email: session.user.email ? session.user.email : undefined,
                 }));
 
-                // Send email notifications
                 await sendNotifications(
                   data.id,
                   formattedContacts,
                   type,
                   description,
                   location,
-                  evidenceFiles?.map(f => ({ url: f.url, type: f.type }))
+                  evidenceFiles?.map((f) => ({ url: f.url, type: f.type }))
                 );
               }
             }
-            if (error) {
-              console.error("Error saving alert:", error);
-            }
+            if (error) console.error("Error saving alert:", error);
           }
         },
         (error) => {
           console.error("Error getting location:", error);
-          // Default to Manila coordinates if location access denied
           const defaultLocation = { lat: 14.5995, lng: 120.9842 };
           setUserLocation(defaultLocation);
           toast.warning("Could not access your location. Using default location.");
         }
       );
     } else {
-      // Default to Manila coordinates if geolocation not supported
       setUserLocation({ lat: 14.5995, lng: 120.9842 });
       toast.warning("Geolocation not supported. Using default location.");
     }
   };
 
   const handleBack = async () => {
-    // Mark alert as resolved
     if (currentAlertId) {
       await supabase
-        .from('emergency_alerts')
-        .update({ 
-          status: 'resolved',
-          resolved_at: new Date().toISOString()
-        })
-        .eq('id', currentAlertId);
+        .from("emergency_alerts")
+        .update({ status: "resolved", resolved_at: new Date().toISOString() })
+        .eq("id", currentAlertId);
     }
-    
     setShowEmergency(false);
     setUserLocation(null);
     setCurrentAlertId(null);
@@ -170,9 +185,7 @@ const Index = () => {
     toast.success("Logged out successfully");
   };
 
-  if (!session) {
-    return null; // Will redirect to auth
-  }
+  if (!session) return null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -186,8 +199,8 @@ const Index = () => {
               <p className="text-sm opacity-90">Quick access to emergency services</p>
             </div>
           </div>
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             size="icon"
             onClick={handleLogout}
             className="text-primary-foreground hover:bg-primary-foreground/10"
@@ -226,7 +239,7 @@ const Index = () => {
                   <ActiveAlerts alerts={alerts} />
                 </div>
               )}
-              
+
               {/* Quick SOS Button */}
               <div className="mb-6">
                 <Button
@@ -258,15 +271,11 @@ const Index = () => {
           </Tabs>
         ) : (
           <div className="space-y-6">
-            {/* Emergency Alert */}
+            {/* Active Emergency */}
             <div className="bg-primary text-primary-foreground p-6 rounded-lg shadow-lg">
               <h2 className="text-xl font-bold mb-2">Emergency Alert Active</h2>
-              <p className="mb-2">
-                <strong>Type:</strong> {emergencyType}
-              </p>
-              <p className="mb-4">
-                <strong>Situation:</strong> {situation}
-              </p>
+              <p className="mb-2"><strong>Type:</strong> {emergencyType}</p>
+              <p className="mb-4"><strong>Situation:</strong> {situation}</p>
               <button
                 onClick={handleBack}
                 className="bg-primary-foreground text-primary px-4 py-2 rounded-md font-semibold hover:opacity-90 transition-opacity"
@@ -275,23 +284,17 @@ const Index = () => {
               </button>
             </div>
 
-            {/* Location Map */}
+            {/* Map & Contacts */}
             {userLocation && (
               <div className="bg-card rounded-lg shadow-lg overflow-hidden">
                 <LocationMap location={userLocation} />
               </div>
             )}
 
-            {/* Emergency Contacts */}
             <ContactList emergencyType={emergencyType} userLocation={userLocation} />
 
-            {/* Share Location */}
             {session?.user && userLocation && (
-              <ShareLocation 
-                userId={session.user.id}
-                location={userLocation}
-                situation={situation}
-              />
+              <ShareLocation userId={session.user.id} location={userLocation} situation={situation} />
             )}
           </div>
         )}
