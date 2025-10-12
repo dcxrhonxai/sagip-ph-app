@@ -110,6 +110,7 @@ const AuthSOS = () => {
   // ----------------------
   const handleSOSSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!session) {
       toast.error("You must be logged in to send an emergency alert.");
       return;
@@ -118,36 +119,43 @@ const AuthSOS = () => {
       toast.error("Please fill in all fields.");
       return;
     }
+
     setSubmittingSOS(true);
 
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
+    // Get current geolocation
+    let latitude = 0;
+    let longitude = 0;
 
-        const { data: user } = await supabase.auth.getUser();
-        const { error } = await supabase.from("emergency_alerts").insert([{
-          user_id: user?.id,
-          emergency_type: emergencyType,
-          situation,
-          latitude,
-          longitude,
-          status: "active",
-          created_at: new Date().toISOString(),
-        }]);
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) =>
+        navigator.geolocation.getCurrentPosition(resolve, reject)
+      );
+      latitude = position.coords.latitude;
+      longitude = position.coords.longitude;
+    } catch (err) {
+      toast.error("Failed to retrieve GPS coordinates. Using default location.");
+    }
 
-        if (error) toast.error("Failed to send SOS alert: " + error.message);
-        else toast.success("Emergency alert sent!");
+    const { data: user } = await supabase.auth.getUser();
 
-        setEmergencyType("");
-        setSituation("");
-        setSubmittingSOS(false);
+    const { error } = await supabase.from("emergency_alerts").insert([
+      {
+        user_id: user?.id,
+        emergency_type: emergencyType,
+        situation,
+        latitude,
+        longitude,
+        status: "active",
+        created_at: new Date().toISOString(), // ISO timestamp
       },
-      (err) => {
-        toast.error("Failed to get GPS coordinates: " + err.message);
-        setSubmittingSOS(false);
-      },
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+    ]);
+
+    if (error) toast.error("Failed to send SOS alert.");
+    else toast.success("Emergency alert sent successfully!");
+
+    setEmergencyType("");
+    setSituation("");
+    setSubmittingSOS(false);
   };
 
   // ----------------------
