@@ -1,13 +1,14 @@
-import { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { lazy, Suspense } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 
-// ✅ Lazy load pages for better performance
-const DashboardPage = lazy(() => import('./pages/DashboardPage'));
-const SettingsPage = lazy(() => import('./pages/SettingsPage'));
-const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
+// ✅ Lazy-load actual existing pages
+const Index = lazy(() => import("./pages/Index"));
+const Auth = lazy(() => import("./pages/Auth"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const VideoRecorder = lazy(() => import("./components/VideoRecorder"));
 
-// ✅ Simple animation variants for page transitions
+// ✅ Page transition animations
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
@@ -20,40 +21,61 @@ function App() {
       <Suspense fallback={<div className="text-center mt-10 text-gray-500">Loading...</div>}>
         <AnimatePresence mode="wait">
           <Routes>
+            {/* Redirect root to home */}
+            <Route path="/" element={<Navigate to="/home" replace />} />
+
+            {/* ✅ Home page with animation */}
             <Route
-              path="/"
-              element={<Navigate to="/dashboard" replace />}
-            />
-            <Route
-              path="/dashboard"
+              path="/home"
               element={
                 <motion.div
-                  key="dashboard"
+                  key="home"
                   initial="initial"
                   animate="animate"
                   exit="exit"
                   variants={pageVariants}
-                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
                 >
-                  <DashboardPage />
+                  <Index />
                 </motion.div>
               }
             />
+
+            {/* Auth page */}
             <Route
-              path="/settings"
+              path="/auth"
               element={
                 <motion.div
-                  key="settings"
+                  key="auth"
                   initial="initial"
                   animate="animate"
                   exit="exit"
                   variants={pageVariants}
-                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
                 >
-                  <SettingsPage />
+                  <Auth />
                 </motion.div>
               }
             />
+
+            {/* Video recorder page */}
+            <Route
+              path="/record"
+              element={
+                <motion.div
+                  key="record"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
+                >
+                  <VideoRecorder />
+                </motion.div>
+              }
+            />
+
+            {/* Catch-all Not Found */}
             <Route
               path="*"
               element={
@@ -63,9 +85,9 @@ function App() {
                   animate="animate"
                   exit="exit"
                   variants={pageVariants}
-                  transition={{ duration: 0.3, ease: 'easeInOut' }}
+                  transition={{ duration: 0.3, ease: "easeInOut" }}
                 >
-                  <NotFoundPage />
+                  <NotFound />
                 </motion.div>
               }
             />
