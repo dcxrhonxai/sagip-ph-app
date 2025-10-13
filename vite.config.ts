@@ -2,16 +2,17 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 
-// ✅ Clean Vite config with Leaflet optimization
+// ✅ Vite configuration optimized for React + Leaflet
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"),
+      "@": path.resolve(__dirname, "./src"),
     },
   },
   optimizeDeps: {
-    include: ["leaflet", "react-leaflet"],
+    // Pre-bundle these to avoid ESM import issues
+    include: ["react-leaflet", "leaflet"],
   },
   build: {
     outDir: "dist",
@@ -20,6 +21,12 @@ export default defineConfig({
       output: {
         assetFileNames: "assets/[name]-[hash][extname]",
       },
+    },
+  },
+  server: {
+    fs: {
+      // Allow Vite to serve files from one level up
+      allow: [".."],
     },
   },
 });
