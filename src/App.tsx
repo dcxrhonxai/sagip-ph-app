@@ -155,7 +155,7 @@ const PageWrapper = ({ children }: { children: React.ReactNode }) => (
 );
 
 // -------------------------------
-// Home Component (merged Index.tsx)
+// Home Component
 // -------------------------------
 interface HomeProps {
   session: Session;
@@ -225,17 +225,6 @@ const Home = ({ session }: HomeProps) => {
       .single();
 
     if (error) return console.error(error);
-
-    if (data) {
-      const { data: contacts } = await supabase
-        .from("personal_contacts")
-        .select("name, phone")
-        .eq("user_id", session.user.id);
-
-      if (contacts?.length) {
-        // sendNotifications(data.id, contacts, data.emergency_type, data.situation, userLocation);
-      }
-    }
   };
 
   // Marker animations
