@@ -11,7 +11,6 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    // Pre-bundle these to avoid ESM import issues
     include: ["react-leaflet", "leaflet"],
   },
   build: {
@@ -25,7 +24,6 @@ export default defineConfig({
   },
   server: {
     fs: {
-      // Allow Vite to serve files from one level up
       allow: [".."],
     },
   },
