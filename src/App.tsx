@@ -1,6 +1,6 @@
 import { useState, useEffect, Suspense, lazy } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client"; // fixed client using ANON_KEY
+import { supabase } from "@/integrations/supabase/client";
 import { Capacitor } from "@capacitor/core";
 import { AdMob } from "@capacitor-community/admob";
 import { toast } from "sonner";
@@ -13,7 +13,9 @@ import "leaflet/dist/leaflet.css";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
 
+// -------------------------------
 // Lazy-loaded pages/components
+// -------------------------------
 const AuthPage = lazy(() => import("@/pages/AuthPage"));
 const EmergencyForm = lazy(() => import("@/components/EmergencyForm"));
 const PersonalContacts = lazy(() => import("@/components/PersonalContacts"));
@@ -21,7 +23,9 @@ const AlertHistory = lazy(() => import("@/components/AlertHistory"));
 const ActiveAlerts = lazy(() => import("@/components/ActiveAlerts"));
 const EmergencyProfile = lazy(() => import("@/components/EmergencyProfile"));
 
+// -------------------------------
 // Leaflet default marker fix
+// -------------------------------
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
@@ -38,7 +42,9 @@ interface Alert {
   created_at: string;
 }
 
+// -------------------------------
 // Framer Motion page variants
+// -------------------------------
 const pageVariants = {
   initial: { opacity: 0, x: 50 },
   in: { opacity: 1, x: 0 },
@@ -46,13 +52,16 @@ const pageVariants = {
 };
 const pageTransition = { type: "tween", ease: "easeInOut", duration: 0.4 };
 
-// --------------------
+// -------------------------------
 // Main App
-// --------------------
+// -------------------------------
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
+  // -------------------------------
+  // Check auth
+  // -------------------------------
   useEffect(() => {
     const initAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -68,7 +77,19 @@ const App = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  if (!authChecked) return null;
+  // -------------------------------
+  // Loading screen while auth is checked
+  // -------------------------------
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Shield className="w-12 h-12 mx-auto mb-4 animate-spin text-primary" />
+          <p className="text-lg opacity-80">Checking session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Router>
@@ -77,9 +98,9 @@ const App = () => {
   );
 };
 
-// --------------------
+// -------------------------------
 // Animated Routes wrapper
-// --------------------
+// -------------------------------
 const AnimatedRoutes = ({ session }: { session: Session | null }) => {
   const location = useLocation();
 
@@ -117,9 +138,9 @@ const AnimatedRoutes = ({ session }: { session: Session | null }) => {
   );
 };
 
-// --------------------
+// -------------------------------
 // PageWrapper for motion animation
-// --------------------
+// -------------------------------
 const PageWrapper = ({ children }: { children: React.ReactNode }) => (
   <motion.div
     initial="initial"
@@ -133,9 +154,9 @@ const PageWrapper = ({ children }: { children: React.ReactNode }) => (
   </motion.div>
 );
 
-// --------------------
-// Home Component
-// --------------------
+// -------------------------------
+// Home Component (merged Index.tsx)
+// -------------------------------
 interface HomeProps {
   session: Session;
 }
@@ -218,16 +239,17 @@ const Home = ({ session }: HomeProps) => {
   };
 
   // Marker animations
-  const markerVariants = {
+  const newestMarkerVariants = {
+    animate: {
+      scale: [1, 1.5, 1],
+      opacity: [1, 0.7, 1],
+      transition: { duration: 1.5, repeat: Infinity, repeatType: "loop" },
+    },
+  };
+
+  const oldMarkerVariants = {
     initial: { y: -50, opacity: 0 },
-    animate: (isNewest: boolean) => ({
-      y: 0,
-      opacity: 1,
-      scale: isNewest ? [1, 1.3, 1] : [0.8, 1, 0.9, 1],
-      transition: isNewest
-        ? { repeat: Infinity, duration: 1.2, ease: "easeInOut" }
-        : { type: "spring", stiffness: 500, damping: 25 },
-    }),
+    animate: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 400, damping: 25 } },
   };
 
   return (
@@ -297,11 +319,9 @@ const Home = ({ session }: HomeProps) => {
                   {alerts.map((alert) => (
                     <motion.div
                       key={alert.id}
-                      custom={alert.id === newestAlertId}
-                      variants={markerVariants}
                       initial="initial"
-                      animate="animate"
-                      exit={{ opacity: 0 }}
+                      animate={alert.id === newestAlertId ? "animate" : "animate"}
+                      variants={alert.id === newestAlertId ? newestMarkerVariants : oldMarkerVariants}
                     >
                       <Marker
                         position={[alert.latitude, alert.longitude]}
@@ -354,4 +374,3 @@ const Home = ({ session }: HomeProps) => {
 };
 
 export default App;
-
