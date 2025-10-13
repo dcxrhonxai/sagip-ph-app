@@ -1,5 +1,5 @@
 import { useState, useEffect, Suspense, lazy } from "react";
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Capacitor } from "@capacitor/core";
 import { AdMob } from "@capacitor-community/admob";
@@ -13,7 +13,9 @@ import "leaflet/dist/leaflet.css";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
 
-// Lazy-loaded pages
+// -------------------------------
+// Lazy-loaded pages/components
+// -------------------------------
 const AuthPage = lazy(() => import("@/pages/AuthPage"));
 const EmergencyForm = lazy(() => import("@/components/EmergencyForm"));
 const PersonalContacts = lazy(() => import("@/components/PersonalContacts"));
@@ -40,6 +42,19 @@ interface Alert {
   created_at: string;
 }
 
+// -------------------------------
+// Framer Motion page variants
+// -------------------------------
+const pageVariants = {
+  initial: { opacity: 0, x: 50 },
+  in: { opacity: 1, x: 0 },
+  out: { opacity: 0, x: -50 },
+};
+const pageTransition = { type: "tween", ease: "easeInOut", duration: 0.4 };
+
+// -------------------------------
+// Main App
+// -------------------------------
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -53,7 +68,6 @@ const App = () => {
       setSession(session);
       setAuthChecked(true);
     };
-
     initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -67,16 +81,66 @@ const App = () => {
 
   return (
     <Router>
-      <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
-        <Routes>
-          <Route path="/auth" element={session ? <Navigate to="/home" replace /> : <AuthPage />} />
-          <Route path="/home" element={session ? <Home session={session} /> : <Navigate to="/auth" replace />} />
-          <Route path="*" element={<Navigate to={session ? "/home" : "/auth"} replace />} />
-        </Routes>
-      </Suspense>
+      <AnimatedRoutes session={session} />
     </Router>
   );
 };
+
+// -------------------------------
+// Animated Routes wrapper
+// -------------------------------
+const AnimatedRoutes = ({ session }: { session: Session | null }) => {
+  const location = useLocation();
+
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route
+            path="/auth"
+            element={
+              <PageWrapper>
+                {session ? <Navigate to="/home" replace /> : <AuthPage />}
+              </PageWrapper>
+            }
+          />
+          <Route
+            path="/home"
+            element={
+              <PageWrapper>
+                {session ? <Home session={session} /> : <Navigate to="/auth" replace />}
+              </PageWrapper>
+            }
+          />
+          <Route
+            path="*"
+            element={
+              <PageWrapper>
+                <Navigate to={session ? "/home" : "/auth"} replace />
+              </PageWrapper>
+            }
+          />
+        </Routes>
+      </AnimatePresence>
+    </Suspense>
+  );
+};
+
+// -------------------------------
+// PageWrapper for motion animation
+// -------------------------------
+const PageWrapper = ({ children }: { children: React.ReactNode }) => (
+  <motion.div
+    initial="initial"
+    animate="in"
+    exit="out"
+    variants={pageVariants}
+    transition={pageTransition}
+    className="min-h-screen"
+  >
+    {children}
+  </motion.div>
+);
 
 // -------------------------------
 // Home Component (merged Index.tsx)
@@ -119,7 +183,6 @@ const Home = ({ session }: HomeProps) => {
 
       if (data) setAlerts(data);
     };
-
     loadInitialData();
   }, []);
 
@@ -158,7 +221,6 @@ const Home = ({ session }: HomeProps) => {
         .eq("user_id", session.user.id);
 
       if (contacts?.length) {
-        // Send notifications (assume a hook is available)
         // sendNotifications(data.id, contacts, data.emergency_type, data.situation, userLocation);
       }
     }
