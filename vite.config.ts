@@ -6,18 +6,17 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src")
-    }
+      "@": path.resolve(__dirname, "./src"),
+    },
   },
   optimizeDeps: {
     include: ["leaflet", "react-leaflet"]
   },
   build: {
-    target: "esnext",
     rollupOptions: {
       output: {
         assetFileNames: "assets/[name]-[hash][extname]"
       }
     }
-  }
+  },
 });
