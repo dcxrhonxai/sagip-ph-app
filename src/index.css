@@ -1,4 +1,4 @@
-@import "tailwindcss-animate";
+@import "tailwindcss-animate"; /* Correct: Moved to the top */
 
 @tailwind base;
 @tailwind components;
