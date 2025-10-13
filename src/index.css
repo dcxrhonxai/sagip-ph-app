@@ -2,124 +2,99 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+@import "tailwindcss-animate";
 
-@layer base {
-  :root {
-    --background: 0 0% 98%;
-    --foreground: 0 0% 10%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 10%;
-
-    --primary: 354 70% 54%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 0 0% 10%;
-
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-
-    --accent: 210 100% 50%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 0 0% 95%;
-    --ring: 354 70% 54%;
-
-    --radius: 0.75rem;
-    
-    --emergency-red: 354 70% 54%;
-    --emergency-red-dark: 354 70% 44%;
-    --success-green: 142 71% 45%;
-    --warning-yellow: 45 93% 47%;
-    
-    --shadow-emergency: 0 10px 40px -10px hsl(354 70% 54% / 0.4);
-    --gradient-emergency: linear-gradient(135deg, hsl(354 70% 54%), hsl(354 70% 44%));
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-
-    /* Map / SOS specific colors */
-    --map-pin-emergency: 354 70% 54%;
-    --map-pin-active: 45 93% 47%;
-    --map-pin-resolved: 142 71% 45%;
-    --map-popup-background: 0 0% 100%;
-    --map-popup-foreground: 0 0% 10%;
-  }
-
-  .dark {
-    --background: 0 0% 10%;
-    --foreground: 0 0% 98%;
-
-    --card: 0 0% 15%;
-    --card-foreground: 0 0% 98%;
-
-    --popover: 0 0% 15%;
-    --popover-foreground: 0 0% 98%;
-
-    --primary: 354 70% 54%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 0 0% 20%;
-    --secondary-foreground: 0 0% 98%;
-
-    --muted: 0 0% 20%;
-    --muted-foreground: 0 0% 65%;
-
-    --accent: 210 100% 50%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 0 0% 20%;
-    --input: 0 0% 20%;
-    --ring: 354 70% 54%;
-
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-
-    /* Map / SOS dark mode */
-    --map-pin-emergency: 354 70% 54%;
-    --map-pin-active: 45 93% 47%;
-    --map-pin-resolved: 142 71% 45%;
-    --map-popup-background: 0 0% 15%;
-    --map-popup-foreground: 0 0% 98%;
-  }
+/* Global reset & full height */
+html, body, #root {
+  height: 100%;
 }
 
+body {
+  font-family: system-ui, sans-serif;
+}
+
+/* -------------------------------
+   Design system variables (HSL)
+---------------------------------*/
+:root {
+  --background: 0 0% 98%;
+  --foreground: 0 0% 10%;
+
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 10%;
+
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 10%;
+
+  --primary: 354 70% 54%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 0 0% 10%;
+
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+
+  --accent: 210 100% 50%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 100%;
+
+  --border: 214.3 31.8% 91.4%;
+  --input: 0 0% 95%;
+  --ring: 354 70% 54%;
+  --radius: 0.75rem;
+
+  --emergency-red: 354 70% 54%;
+  --emergency-red-dark: 354 70% 44%;
+  --success-green: 142 71% 45%;
+  --warning-yellow: 45 93% 47%;
+
+  --shadow-emergency: 0 10px 40px -10px hsl(354 70% 54% / 0.4);
+  --gradient-emergency: linear-gradient(135deg, hsl(354 70% 54%), hsl(354 70% 44%));
+
+  --map-pin-emergency: 354 70% 54%;
+  --map-pin-active: 45 93% 47%;
+  --map-pin-resolved: 142 71% 45%;
+  --map-popup-background: 0 0% 100%;
+  --map-popup-foreground: 0 0% 10%;
+}
+
+/* Dark mode */
+.dark {
+  --background: 0 0% 10%;
+  --foreground: 0 0% 98%;
+
+  --card: 0 0% 15%;
+  --card-foreground: 0 0% 98%;
+
+  --secondary: 0 0% 20%;
+  --secondary-foreground: 0 0% 98%;
+
+  --muted: 0 0% 20%;
+  --muted-foreground: 0 0% 65%;
+
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+
+  --map-popup-background: 0 0% 15%;
+  --map-popup-foreground: 0 0% 98%;
+}
+
+/* -------------------------------
+   Base styles using Tailwind @apply
+---------------------------------*/
 @layer base {
   * {
-    @apply border-border;
+    @apply border border-[hsl(var(--border))];
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-[hsl(var(--background))] text-[hsl(var(--foreground))];
   }
 
-  /* SOS / map-specific utilities */
+  /* SOS / Map utilities */
   .sos-emergency {
     background-color: hsl(var(--emergency-red));
     color: hsl(var(--primary-foreground));
@@ -133,17 +108,4 @@ All colors MUST be HSL.
     border-radius: var(--radius);
   }
 
-  .sos-warning {
-    background-color: hsl(var(--warning-yellow));
-    color: hsl(var(--primary-foreground));
-    border-radius: var(--radius);
-  }
-
-  .map-popup {
-    background-color: hsl(var(--map-popup-background));
-    color: hsl(var(--map-popup-foreground));
-    padding: 0.5rem;
-    border-radius: var(--radius);
-    font-size: 0.875rem;
-  }
-}
+  .sos-wa
