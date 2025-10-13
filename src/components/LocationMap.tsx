@@ -1,89 +1,52 @@
-import { useEffect, useState } from "react";
-import L from "leaflet";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import { motion } from "framer-motion";
+import { MapPin } from "lucide-react";
 
-// Custom empty icon because we'll render marker with motion div
-const BlankIcon = new L.DivIcon({ className: "custom-marker" });
+interface LocationMapProps {
+  location: {
+    lat: number;
+    lng: number;
+  };
+}
 
-// Motion variants for “drop + bounce”
-const dropVariants = {
-  hidden: { y: -100, opacity: 0 },
-  visible: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 25 } },
-};
-
-export const LocationMap = ({
-  alerts,
-  initialLocation,
-}: {
-  alerts: any[];
-  initialLocation: { lat: number; lng: number };
-}) => {
-  const [displayedAlerts, setDisplayedAlerts] = useState<any[]>([]);
-
-  // Stagger alerts with a slight delay for pin-drop effect
-  useEffect(() => {
-    alerts.forEach((alert, i) => {
-      if (!displayedAlerts.find((a) => a.id === alert.id)) {
-        setTimeout(() => setDisplayedAlerts((prev) => [...prev, alert]), i * 200);
-      }
-    });
-  }, [alerts, displayedAlerts]);
-
-  const newestAlert = displayedAlerts[displayedAlerts.length - 1];
-
+const LocationMap = ({ location }: LocationMapProps) => {
   return (
-    <MapContainer center={initialLocation} zoom={15} scrollWheelZoom className="w-full h-96 rounded-lg shadow-md">
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+    <div className="relative">
+      {/* Map Preview - Using static map for now */}
+      <div className="h-64 bg-muted relative overflow-hidden">
+        <iframe
+          title="Location Map"
+          width="100%"
+          height="100%"
+          style={{ border: 0 }}
+          loading="lazy"
+          allowFullScreen
+          src={`https://www.google.com/maps/embed/v1/view?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&center=${location.lat},${location.lng}&zoom=15&maptype=roadmap`}
+        ></iframe>
+        
+        {/* Location Marker Overlay */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="bg-primary text-primary-foreground rounded-full p-3 shadow-lg animate-bounce">
+            <MapPin className="w-8 h-8" />
+          </div>
+        </div>
+      </div>
 
-      {displayedAlerts.map((alert) => (
-        <Marker
-          key={alert.id}
-          position={[alert.latitude, alert.longitude]}
-          icon={BlankIcon} // use motion div
-        >
-          <Popup>
-            <div className="space-y-1">
-              <p className="font-bold">{alert.emergency_type}</p>
-              <p>{alert.situation}</p>
-            </div>
-          </Popup>
-          <motion.div
-            className="w-8 h-10 bg-red-600 rounded-full shadow-lg"
-            variants={dropVariants}
-            initial="hidden"
-            animate="visible"
-          />
-        </Marker>
-      ))}
-
-      {newestAlert && (
-        <Marker
-          position={[newestAlert.latitude, newestAlert.longitude]}
-          icon={BlankIcon}
-        >
-          <Popup>
-            <div className="space-y-1">
-              <p className="font-bold">{newestAlert.emergency_type}</p>
-              <p>{newestAlert.situation}</p>
-              <p className="text-xs text-red-600">Newest alert</p>
-            </div>
-          </Popup>
-          <motion.div
-            className="w-10 h-12 bg-red-600 rounded-full shadow-lg"
-            variants={{
-              hidden: { y: -120, opacity: 0 },
-              visible: {
-                y: 0,
-                opacity: 1,
-                transition: { type: "spring", stiffness: 500, damping: 20, repeat: Infinity, repeatType: "mirror" },
-              },
-            }}
-            initial="hidden"
-            animate="visible"
-          />
-        </Marker>
-      )}
-    </MapContainer>
+      {/* Location Info */}
+      <div className="bg-card p-4 border-t">
+        <div className="flex items-start gap-3">
+          <MapPin className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-semibold text-foreground">Your Location Detected</p>
+            <p className="text-sm text-muted-foreground">
+              Coordinates: {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Emergency services near you have been identified
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
+
+export default LocationMap;

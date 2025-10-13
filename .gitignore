@@ -1,65 +1,12 @@
-# ----------------------
-# Android build and IDE files
-# ----------------------
-# Built application files
-*.apk
-*.aar
-*.ap_
-*.aab
-
-# ART/Dalvik VM
-*.dex
-
-# Java class files
-*.class
-
-# Generated files
-bin/
-gen/
-out/
-
-# Gradle
-.gradle/
-build/
-
-# Local configuration (SDK paths, etc.)
-local.properties
-
-# Proguard
-proguard/
-
 # Logs
-*.log
 logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Android Studio
-.navigation/
-captures/
-.idea/
-*.iml
-*.hprof
-
-# Cordova/Capacitor
-capacitor-cordova-android-plugins/
-app/src/main/assets/public
-app/src/main/assets/capacitor.config.json
-app/src/main/assets/capacitor.plugins.json
-app/src/main/res/xml/config.xml
-android/app/google-services.json
-"android/app/google-services.json"
-
-# Keystore files
-*.jks
-*.keystore
-
-# ----------------------
-# Node / Deno / Frontend
-# ----------------------
 node_modules
 dist
 dist-ssr
@@ -68,16 +15,10 @@ dist-ssr
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+.idea
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-*.bat
-
-# Environment variables
-.env
-supabase/functions/**/.env
-supabase/functions/**/.env.*
-supabase/functions/send-emergency-email/run-emergency.ps1
