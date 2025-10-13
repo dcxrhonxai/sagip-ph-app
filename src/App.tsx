@@ -14,6 +14,19 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
 
 // -------------------------------
+// Leaflet default marker fix for Vite
+// -------------------------------
+import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
+import iconUrl from "leaflet/dist/images/marker-icon.png";
+import shadowUrl from "leaflet/dist/images/marker-shadow.png";
+
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl,
+  iconUrl,
+  shadowUrl,
+});
+
+// -------------------------------
 // Lazy-loaded pages/components
 // -------------------------------
 const AuthPage = lazy(() => import("@/pages/AuthPage"));
@@ -22,16 +35,6 @@ const PersonalContacts = lazy(() => import("@/components/PersonalContacts"));
 const AlertHistory = lazy(() => import("@/components/AlertHistory"));
 const ActiveAlerts = lazy(() => import("@/components/ActiveAlerts"));
 const EmergencyProfile = lazy(() => import("@/components/EmergencyProfile"));
-
-// -------------------------------
-// Leaflet default marker fix
-// -------------------------------
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
-  iconUrl: require("leaflet/dist/images/marker-icon.png"),
-  shadowUrl: require("leaflet/dist/images/marker-shadow.png"),
-});
 
 interface Alert {
   id: string;
@@ -317,7 +320,7 @@ const Home = ({ session }: HomeProps) => {
                         icon={
                           alert.id === newestAlertId
                             ? new L.Icon({
-                                iconUrl: require("@/assets/pulse-pin.png"),
+                                iconUrl: iconUrl, // Use default icon
                                 iconSize: [35, 35],
                               })
                             : undefined
