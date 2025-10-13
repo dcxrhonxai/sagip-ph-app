@@ -1,6 +1,6 @@
 import { useState, useEffect, Suspense, lazy } from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client"; // fixed client using ANON_KEY
 import { Capacitor } from "@capacitor/core";
 import { AdMob } from "@capacitor-community/admob";
 import { toast } from "sonner";
@@ -13,9 +13,7 @@ import "leaflet/dist/leaflet.css";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
 
-// -------------------------------
 // Lazy-loaded pages/components
-// -------------------------------
 const AuthPage = lazy(() => import("@/pages/AuthPage"));
 const EmergencyForm = lazy(() => import("@/components/EmergencyForm"));
 const PersonalContacts = lazy(() => import("@/components/PersonalContacts"));
@@ -23,9 +21,7 @@ const AlertHistory = lazy(() => import("@/components/AlertHistory"));
 const ActiveAlerts = lazy(() => import("@/components/ActiveAlerts"));
 const EmergencyProfile = lazy(() => import("@/components/EmergencyProfile"));
 
-// -------------------------------
 // Leaflet default marker fix
-// -------------------------------
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: require("leaflet/dist/images/marker-icon-2x.png"),
@@ -42,9 +38,7 @@ interface Alert {
   created_at: string;
 }
 
-// -------------------------------
 // Framer Motion page variants
-// -------------------------------
 const pageVariants = {
   initial: { opacity: 0, x: 50 },
   in: { opacity: 1, x: 0 },
@@ -52,9 +46,9 @@ const pageVariants = {
 };
 const pageTransition = { type: "tween", ease: "easeInOut", duration: 0.4 };
 
-// -------------------------------
+// --------------------
 // Main App
-// -------------------------------
+// --------------------
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
@@ -83,9 +77,9 @@ const App = () => {
   );
 };
 
-// -------------------------------
+// --------------------
 // Animated Routes wrapper
-// -------------------------------
+// --------------------
 const AnimatedRoutes = ({ session }: { session: Session | null }) => {
   const location = useLocation();
 
@@ -123,9 +117,9 @@ const AnimatedRoutes = ({ session }: { session: Session | null }) => {
   );
 };
 
-// -------------------------------
+// --------------------
 // PageWrapper for motion animation
-// -------------------------------
+// --------------------
 const PageWrapper = ({ children }: { children: React.ReactNode }) => (
   <motion.div
     initial="initial"
@@ -139,9 +133,9 @@ const PageWrapper = ({ children }: { children: React.ReactNode }) => (
   </motion.div>
 );
 
-// -------------------------------
-// Home Component (with animated pins)
-// -------------------------------
+// --------------------
+// Home Component
+// --------------------
 interface HomeProps {
   session: Session;
 }
@@ -210,6 +204,7 @@ const Home = ({ session }: HomeProps) => {
       .single();
 
     if (error) return console.error(error);
+
     if (data) {
       const { data: contacts } = await supabase
         .from("personal_contacts")
@@ -224,10 +219,15 @@ const Home = ({ session }: HomeProps) => {
 
   // Marker animations
   const markerVariants = {
-    initial: { y: -100, opacity: 0 },
-    animate: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 25 } },
-    bounce: { scale: [1, 1.2, 1], transition: { repeat: Infinity, duration: 1.2 } },
-    pulse: { scale: [1, 1.3, 1], opacity: [1, 0.6, 1], transition: { repeat: Infinity, duration: 1.2 } },
+    initial: { y: -50, opacity: 0 },
+    animate: (isNewest: boolean) => ({
+      y: 0,
+      opacity: 1,
+      scale: isNewest ? [1, 1.3, 1] : [0.8, 1, 0.9, 1],
+      transition: isNewest
+        ? { repeat: Infinity, duration: 1.2, ease: "easeInOut" }
+        : { type: "spring", stiffness: 500, damping: 25 },
+    }),
   };
 
   return (
@@ -279,6 +279,7 @@ const Home = ({ session }: HomeProps) => {
             </TabsTrigger>
           </TabsList>
 
+          {/* Emergency */}
           <TabsContent value="emergency" className="space-y-4">
             {alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
             <Suspense fallback={<div>Loading form...</div>}>
@@ -296,9 +297,10 @@ const Home = ({ session }: HomeProps) => {
                   {alerts.map((alert) => (
                     <motion.div
                       key={alert.id}
+                      custom={alert.id === newestAlertId}
                       variants={markerVariants}
                       initial="initial"
-                      animate={alert.id === newestAlertId ? "pulse" : "animate"}
+                      animate="animate"
                       exit={{ opacity: 0 }}
                     >
                       <Marker
@@ -325,18 +327,21 @@ const Home = ({ session }: HomeProps) => {
             )}
           </TabsContent>
 
+          {/* Contacts */}
           <TabsContent value="contacts">
             <Suspense fallback={<div>Loading contacts...</div>}>
               <PersonalContacts userId={session.user.id} />
             </Suspense>
           </TabsContent>
 
+          {/* Profile */}
           <TabsContent value="profile">
             <Suspense fallback={<div>Loading profile...</div>}>
               <EmergencyProfile userId={session.user.id} />
             </Suspense>
           </TabsContent>
 
+          {/* History */}
           <TabsContent value="history">
             <Suspense fallback={<div>Loading history...</div>}>
               <AlertHistory userId={session.user.id} />
@@ -349,3 +354,4 @@ const Home = ({ session }: HomeProps) => {
 };
 
 export default App;
+
