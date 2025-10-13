@@ -59,9 +59,6 @@ const App = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
-  // -------------------------------
-  // Check auth
-  // -------------------------------
   useEffect(() => {
     const initAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -143,7 +140,7 @@ const PageWrapper = ({ children }: { children: React.ReactNode }) => (
 );
 
 // -------------------------------
-// Home Component (merged Index.tsx)
+// Home Component (with animated pins)
 // -------------------------------
 interface HomeProps {
   session: Session;
@@ -213,7 +210,6 @@ const Home = ({ session }: HomeProps) => {
       .single();
 
     if (error) return console.error(error);
-
     if (data) {
       const { data: contacts } = await supabase
         .from("personal_contacts")
@@ -226,9 +222,12 @@ const Home = ({ session }: HomeProps) => {
     }
   };
 
+  // Marker animations
   const markerVariants = {
     initial: { y: -100, opacity: 0 },
     animate: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 25 } },
+    bounce: { scale: [1, 1.2, 1], transition: { repeat: Infinity, duration: 1.2 } },
+    pulse: { scale: [1, 1.3, 1], opacity: [1, 0.6, 1], transition: { repeat: Infinity, duration: 1.2 } },
   };
 
   return (
@@ -280,7 +279,6 @@ const Home = ({ session }: HomeProps) => {
             </TabsTrigger>
           </TabsList>
 
-          {/* Emergency */}
           <TabsContent value="emergency" className="space-y-4">
             {alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
             <Suspense fallback={<div>Loading form...</div>}>
@@ -300,7 +298,7 @@ const Home = ({ session }: HomeProps) => {
                       key={alert.id}
                       variants={markerVariants}
                       initial="initial"
-                      animate="animate"
+                      animate={alert.id === newestAlertId ? "pulse" : "animate"}
                       exit={{ opacity: 0 }}
                     >
                       <Marker
@@ -327,21 +325,18 @@ const Home = ({ session }: HomeProps) => {
             )}
           </TabsContent>
 
-          {/* Contacts */}
           <TabsContent value="contacts">
             <Suspense fallback={<div>Loading contacts...</div>}>
               <PersonalContacts userId={session.user.id} />
             </Suspense>
           </TabsContent>
 
-          {/* Profile */}
           <TabsContent value="profile">
             <Suspense fallback={<div>Loading profile...</div>}>
               <EmergencyProfile userId={session.user.id} />
             </Suspense>
           </TabsContent>
 
-          {/* History */}
           <TabsContent value="history">
             <Suspense fallback={<div>Loading history...</div>}>
               <AlertHistory userId={session.user.id} />
