@@ -13,16 +13,14 @@ import "leaflet/dist/leaflet.css";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
 
-// -------------------------------
-// Leaflet default marker fix for Vite
-// -------------------------------
-import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
+// ✅ Leaflet marker fix for Vite
 import iconUrl from "leaflet/dist/images/marker-icon.png";
+import iconRetinaUrl from "leaflet/dist/images/marker-icon-2x.png";
 import shadowUrl from "leaflet/dist/images/marker-shadow.png";
 
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl,
   iconUrl,
+  iconRetinaUrl,
   shadowUrl,
 });
 
@@ -36,6 +34,9 @@ const AlertHistory = lazy(() => import("@/components/AlertHistory"));
 const ActiveAlerts = lazy(() => import("@/components/ActiveAlerts"));
 const EmergencyProfile = lazy(() => import("@/components/EmergencyProfile"));
 
+// -------------------------------
+// Types
+// -------------------------------
 interface Alert {
   id: string;
   emergency_type: string;
@@ -62,9 +63,6 @@ const App = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
-  // -------------------------------
-  // Check auth
-  // -------------------------------
   useEffect(() => {
     const initAuth = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -80,9 +78,6 @@ const App = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // -------------------------------
-  // Loading screen while auth is checked
-  // -------------------------------
   if (!authChecked) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -102,57 +97,25 @@ const App = () => {
 };
 
 // -------------------------------
-// Animated Routes wrapper
+// Animated Routes
 // -------------------------------
 const AnimatedRoutes = ({ session }: { session: Session | null }) => {
   const location = useLocation();
-
   return (
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
-          <Route
-            path="/auth"
-            element={
-              <PageWrapper>
-                {session ? <Navigate to="/home" replace /> : <AuthPage />}
-              </PageWrapper>
-            }
-          />
-          <Route
-            path="/home"
-            element={
-              <PageWrapper>
-                {session ? <Home session={session} /> : <Navigate to="/auth" replace />}
-              </PageWrapper>
-            }
-          />
-          <Route
-            path="*"
-            element={
-              <PageWrapper>
-                <Navigate to={session ? "/home" : "/auth"} replace />
-              </PageWrapper>
-            }
-          />
+          <Route path="/auth" element={<PageWrapper>{session ? <Navigate to="/home" replace /> : <AuthPage />}</PageWrapper>} />
+          <Route path="/home" element={<PageWrapper>{session ? <Home session={session} /> : <Navigate to="/auth" replace />}</PageWrapper>} />
+          <Route path="*" element={<PageWrapper><Navigate to={session ? "/home" : "/auth"} replace /></PageWrapper>} />
         </Routes>
       </AnimatePresence>
     </Suspense>
   );
 };
 
-// -------------------------------
-// PageWrapper for motion animation
-// -------------------------------
 const PageWrapper = ({ children }: { children: React.ReactNode }) => (
-  <motion.div
-    initial="initial"
-    animate="in"
-    exit="out"
-    variants={pageVariants}
-    transition={pageTransition}
-    className="min-h-screen"
-  >
+  <motion.div initial="initial" animate="in" exit="out" variants={pageVariants} transition={pageTransition} className="min-h-screen">
     {children}
   </motion.div>
 );
@@ -160,15 +123,12 @@ const PageWrapper = ({ children }: { children: React.ReactNode }) => (
 // -------------------------------
 // Home Component
 // -------------------------------
-interface HomeProps {
-  session: Session;
-}
+interface HomeProps { session: Session; }
 
 const Home = ({ session }: HomeProps) => {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [activeTab, setActiveTab] = useState("emergency");
-
   const newestAlertId = alerts[0]?.id;
 
   // AdMob init
@@ -178,7 +138,7 @@ const Home = ({ session }: HomeProps) => {
     }
   }, []);
 
-  // Initial location & alerts
+  // Load location & alerts
   useEffect(() => {
     const loadInitialData = async () => {
       if (navigator.geolocation) {
@@ -201,7 +161,7 @@ const Home = ({ session }: HomeProps) => {
     loadInitialData();
   }, []);
 
-  // Real-time subscription
+  // Real-time alerts
   useEffect(() => {
     const sub = supabase
       .from("emergency_alerts")
@@ -227,26 +187,14 @@ const Home = ({ session }: HomeProps) => {
       .select()
       .single();
 
-    if (error) return console.error(error);
+    if (error) console.error(error);
   };
 
-  // Marker animations
-  const newestMarkerVariants = {
-    animate: {
-      scale: [1, 1.5, 1],
-      opacity: [1, 0.7, 1],
-      transition: { duration: 1.5, repeat: Infinity, repeatType: "loop" },
-    },
-  };
-
-  const oldMarkerVariants = {
-    initial: { y: -50, opacity: 0 },
-    animate: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 400, damping: 25 } },
-  };
+  const newestMarkerVariants = { animate: { scale: [1, 1.5, 1], opacity: [1, 0.7, 1], transition: { duration: 1.5, repeat: Infinity, repeatType: "loop" } } };
+  const oldMarkerVariants = { initial: { y: -50, opacity: 0 }, animate: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 400, damping: 25 } } };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="bg-primary text-primary-foreground shadow-lg sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -256,109 +204,43 @@ const Home = ({ session }: HomeProps) => {
               <p className="text-sm opacity-90">Quick access to emergency services</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={async () => {
-              await supabase.auth.signOut();
-              toast.success("Logged out successfully");
-            }}
-          >
+          <Button variant="ghost" size="icon" onClick={async () => { await supabase.auth.signOut(); toast.success("Logged out successfully"); }}>
             <LogOut className="w-5 h-5" />
           </Button>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-6 max-w-3xl space-y-6">
-        <Button
-          onClick={handleQuickSOS}
-          className="w-full h-32 text-3xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse"
-        >
+        <Button onClick={handleQuickSOS} className="w-full h-32 text-3xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse">
           🚨 SOS
         </Button>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="emergency" className="flex items-center gap-2">
-              <Shield className="w-4 h-4" /> Emergency
-            </TabsTrigger>
-            <TabsTrigger value="contacts" className="flex items-center gap-2">
-              <Users className="w-4 h-4" /> Contacts
-            </TabsTrigger>
-            <TabsTrigger value="profile" className="flex items-center gap-2">
-              <Heart className="w-4 h-4" /> Profile
-            </TabsTrigger>
-            <TabsTrigger value="history" className="flex items-center gap-2">
-              <History className="w-4 h-4" /> History
-            </TabsTrigger>
+            <TabsTrigger value="emergency" className="flex items-center gap-2"><Shield className="w-4 h-4" /> Emergency</TabsTrigger>
+            <TabsTrigger value="contacts" className="flex items-center gap-2"><Users className="w-4 h-4" /> Contacts</TabsTrigger>
+            <TabsTrigger value="profile" className="flex items-center gap-2"><Heart className="w-4 h-4" /> Profile</TabsTrigger>
+            <TabsTrigger value="history" className="flex items-center gap-2"><History className="w-4 h-4" /> History</TabsTrigger>
           </TabsList>
 
-          {/* Emergency */}
           <TabsContent value="emergency" className="space-y-4">
             {alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
-            <Suspense fallback={<div>Loading form...</div>}>
-              <EmergencyForm onEmergencyClick={() => {}} userId={session.user.id} />
-            </Suspense>
-
+            <Suspense fallback={<div>Loading form...</div>}><EmergencyForm onEmergencyClick={() => {}} userId={session.user.id} /></Suspense>
             {userLocation && (
-              <MapContainer
-                center={[userLocation.lat, userLocation.lng]}
-                zoom={13}
-                className="w-full h-[500px] rounded-lg shadow-lg"
-              >
+              <MapContainer center={[userLocation.lat, userLocation.lng]} zoom={13} className="w-full h-[500px] rounded-lg shadow-lg">
                 <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                <AnimatePresence>
-                  {alerts.map((alert) => (
-                    <motion.div
-                      key={alert.id}
-                      initial="initial"
-                      animate={alert.id === newestAlertId ? "animate" : "animate"}
-                      variants={alert.id === newestAlertId ? newestMarkerVariants : oldMarkerVariants}
-                    >
-                      <Marker
-                        position={[alert.latitude, alert.longitude]}
-                        icon={
-                          alert.id === newestAlertId
-                            ? new L.Icon({
-                                iconUrl: iconUrl, // Use default icon
-                                iconSize: [35, 35],
-                              })
-                            : undefined
-                        }
-                      >
-                        <Popup>
-                          <strong>{alert.emergency_type}</strong>
-                          <br />
-                          {alert.situation}
-                        </Popup>
-                      </Marker>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
+                {alerts.map((alert) => (
+                  <Marker key={alert.id} position={[alert.latitude, alert.longitude]}>
+                    <Popup><strong>{alert.emergency_type}</strong><br />{alert.situation}</Popup>
+                  </Marker>
+                ))}
               </MapContainer>
             )}
           </TabsContent>
 
-          {/* Contacts */}
-          <TabsContent value="contacts">
-            <Suspense fallback={<div>Loading contacts...</div>}>
-              <PersonalContacts userId={session.user.id} />
-            </Suspense>
-          </TabsContent>
-
-          {/* Profile */}
-          <TabsContent value="profile">
-            <Suspense fallback={<div>Loading profile...</div>}>
-              <EmergencyProfile userId={session.user.id} />
-            </Suspense>
-          </TabsContent>
-
-          {/* History */}
-          <TabsContent value="history">
-            <Suspense fallback={<div>Loading history...</div>}>
-              <AlertHistory userId={session.user.id} />
-            </Suspense>
-          </TabsContent>
+          <TabsContent value="contacts"><Suspense fallback={<div>Loading contacts...</div>}><PersonalContacts userId={session.user.id} /></Suspense></TabsContent>
+          <TabsContent value="profile"><Suspense fallback={<div>Loading profile...</div>}><EmergencyProfile userId={session.user.id} /></Suspense></TabsContent>
+          <TabsContent value="history"><Suspense fallback={<div>Loading history...</div>}><AlertHistory userId={session.user.id} /></Suspense></TabsContent>
         </Tabs>
       </main>
     </div>
