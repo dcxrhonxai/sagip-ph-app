@@ -1,11 +1,11 @@
-@import "tailwindcss-animate"; /* Correct: Moved to the top */
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+@import "tailwindcss-animate";
+
 /* -------------------------------
-   Global reset & full height
+   Base layout and global styling
 ---------------------------------*/
 html, body, #root {
   height: 100%;
@@ -16,78 +16,35 @@ body {
 }
 
 /* -------------------------------
-   Design system variables (HSL)
+   Design system (HSL variables)
 ---------------------------------*/
 :root {
   --background: 0 0% 98%;
   --foreground: 0 0% 10%;
-
   --card: 0 0% 100%;
   --card-foreground: 0 0% 10%;
-
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 10%;
-
   --primary: 354 70% 54%;
   --primary-foreground: 0 0% 100%;
-
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 0 0% 10%;
-
-  --muted: 210 40% 96.1%;
-  --muted-foreground: 215.4 16.3% 46.9%;
-
-  --accent: 210 100% 50%;
-  --accent-foreground: 0 0% 100%;
-
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 100%;
-
-  --border: 214.3 31.8% 91.4%;
-  --input: 0 0% 95%;
-  --ring: 354 70% 54%;
-  --radius: 0.75rem;
-
-  --emergency-red: 354 70% 54%;
-  --emergency-red-dark: 354 70% 44%;
   --success-green: 142 71% 45%;
   --warning-yellow: 45 93% 47%;
-
+  --emergency-red: 354 70% 54%;
+  --emergency-red-dark: 354 70% 44%;
   --shadow-emergency: 0 10px 40px -10px hsl(354 70% 54% / 0.4);
-  --gradient-emergency: linear-gradient(135deg, hsl(354 70% 54%), hsl(354 70% 44%));
-
-  --map-pin-emergency: 354 70% 54%;
-  --map-pin-active: 45 93% 47%;
-  --map-pin-resolved: 142 71% 45%;
-  --map-popup-background: 0 0% 100%;
-  --map-popup-foreground: 0 0% 10%;
+  --radius: 0.75rem;
 }
 
 /* -------------------------------
-   Dark mode variables
+   Dark mode
 ---------------------------------*/
 .dark {
   --background: 0 0% 10%;
   --foreground: 0 0% 98%;
-
   --card: 0 0% 15%;
   --card-foreground: 0 0% 98%;
-
-  --secondary: 0 0% 20%;
-  --secondary-foreground: 0 0% 98%;
-
-  --muted: 0 0% 20%;
-  --muted-foreground: 0 0% 65%;
-
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
-
-  --map-popup-background: 0 0% 15%;
-  --map-popup-foreground: 0 0% 98%;
 }
 
 /* -------------------------------
-   Base styles using Tailwind @apply
+   Custom utility classes
 ---------------------------------*/
 @layer base {
   * {
@@ -98,7 +55,6 @@ body {
     @apply bg-[hsl(var(--background))] text-[hsl(var(--foreground))];
   }
 
-  /* SOS / Map utility classes */
   .sos-emergency {
     background-color: hsl(var(--emergency-red));
     color: hsl(var(--primary-foreground));
@@ -114,15 +70,7 @@ body {
 
   .sos-warning {
     background-color: hsl(var(--warning-yellow));
-    color: hsl(var(--primary-foreground));
+    color: hsl(var(--foreground));
     border-radius: var(--radius);
-  }
-
-  .map-popup {
-    background-color: hsl(var(--map-popup-background));
-    color: hsl(var(--map-popup-foreground));
-    padding: 0.5rem;
-    border-radius: var(--radius);
-    font-size: 0.875rem;
   }
 }
