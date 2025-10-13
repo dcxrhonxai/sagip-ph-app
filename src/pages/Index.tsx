@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { useEmergencyNotifications } from "@/hooks/useEmergencyNotifications";
 import type { Session } from "@supabase/supabase-js";
 import { Capacitor } from "@capacitor/core";
-import { AdMob, BannerAdSize, BannerAdPosition } from "@capacitor-community/admob";
+import { AdMob } from "@capacitor-community/admob";
 
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
@@ -45,7 +45,6 @@ interface Props {
 
 const Index = ({ session }: Props) => {
   const navigate = useNavigate();
-  const [showEmergency, setShowEmergency] = useState(false);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [activeTab, setActiveTab] = useState("emergency");
@@ -61,26 +60,27 @@ const Index = ({ session }: Props) => {
   }, []);
 
   // -------------------------------
-  // Initial location & alerts
+  // Load initial location + alerts
   // -------------------------------
   useEffect(() => {
     const loadInitialData = async () => {
-      // User location
+      // Get user location
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-          () => setUserLocation({ lat: 14.5995, lng: 120.9842 }) // Manila fallback
+          () => setUserLocation({ lat: 14.5995, lng: 120.9842 }) // fallback
         );
       } else {
         setUserLocation({ lat: 14.5995, lng: 120.9842 });
       }
 
-      // Initial alerts
+      // Load last 50 alerts
       const { data } = await supabase
         .from("emergency_alerts")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(50);
+
       if (data) setAlerts(data);
     };
 
@@ -120,13 +120,12 @@ const Index = ({ session }: Props) => {
     if (error) return console.error(error);
 
     if (data) {
-      // Notify personal contacts
       const { data: contacts } = await supabase
         .from("personal_contacts")
         .select("name, phone")
         .eq("user_id", session.user.id);
 
-      if (contacts && contacts.length > 0) {
+      if (contacts?.length) {
         await sendNotifications(
           data.id,
           contacts.map((c) => ({ name: c.name, phone: c.phone })),
@@ -139,11 +138,11 @@ const Index = ({ session }: Props) => {
   };
 
   // -------------------------------
-  // Map marker animation variants
+  // Marker animation
   // -------------------------------
   const markerVariants = {
-    initial: { y: -50, opacity: 0 },
-    animate: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 30 } },
+    initial: { y: -100, opacity: 0 },
+    animate: { y: 0, opacity: 1, transition: { type: "spring", stiffness: 500, damping: 25 } },
   };
 
   const newestAlertId = alerts[0]?.id;
@@ -179,6 +178,7 @@ const Index = ({ session }: Props) => {
 
       {/* Main */}
       <main className="container mx-auto px-4 py-6 max-w-3xl space-y-6">
+        {/* Quick SOS */}
         <Button
           onClick={handleQuickSOS}
           className="w-full h-32 text-3xl font-bold bg-destructive hover:bg-destructive/90 text-destructive-foreground shadow-lg animate-pulse"
@@ -202,6 +202,7 @@ const Index = ({ session }: Props) => {
             </TabsTrigger>
           </TabsList>
 
+          {/* Emergency */}
           <TabsContent value="emergency" className="space-y-4">
             {alerts.length > 0 && <ActiveAlerts alerts={alerts} />}
             <EmergencyForm onEmergencyClick={() => {}} userId={session.user.id} />
@@ -227,7 +228,7 @@ const Index = ({ session }: Props) => {
                         icon={
                           alert.id === newestAlertId
                             ? new L.Icon({
-                                iconUrl: require("@/assets/pulse-pin.png"), // custom pulsing pin
+                                iconUrl: require("@/assets/pulse-pin.png"),
                                 iconSize: [35, 35],
                               })
                             : undefined
@@ -246,14 +247,17 @@ const Index = ({ session }: Props) => {
             )}
           </TabsContent>
 
+          {/* Contacts */}
           <TabsContent value="contacts">
             <PersonalContacts userId={session.user.id} />
           </TabsContent>
 
+          {/* Profile */}
           <TabsContent value="profile">
             <EmergencyProfile userId={session.user.id} />
           </TabsContent>
 
+          {/* History */}
           <TabsContent value="history">
             <AlertHistory userId={session.user.id} />
           </TabsContent>
